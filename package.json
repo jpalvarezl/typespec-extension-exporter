@@ -1,0 +1,31 @@
+{
+  "name": "extension-emitter",
+  "version": "0.1.0",
+  "description": "Tiny TypeSpec emitter that lists all @extension decorator occurrences as JSON.",
+  "type": "module",
+  "main": "dist/src/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "tspMain": "dist/src/index.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -p . --watch",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@typespec/compiler": ">=1.13.0",
+    "@typespec/openapi": ">=1.13.0"
+  },
+  "devDependencies": {
+    "@typespec/compiler": "^1.13.0",
+    "@typespec/openapi": "^1.13.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
