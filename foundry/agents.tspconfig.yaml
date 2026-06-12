@@ -1,0 +1,29 @@
+# Emitter config for the azure-ai-agents Java SDK TypeSpec project.
+#
+# Compile the project's entrypoint (client.tsp) with this config; the spec path
+# is supplied on the command line (see the foundry:emit:agents npm script).
+#
+# The `imports` mirror the spec project's own tspconfig so all decorators and
+# namespaces (@route, @scope, @operationId, OpenAI models, ...) resolve.
+# Java type names come from TCGC (which applies @clientName and access). The
+# base package is pinned via `java-namespace` to match the typespec-java
+# emitter's `namespace` option in the spec project's tspconfig.yaml.
+
+output-dir: "{cwd}/foundry/tsp-output"
+
+emit:
+  - extension-emitter
+
+imports:
+  - "@azure-tools/typespec-azure-core"
+  - "@azure-tools/typespec-azure-core/experimental"
+  - "@azure-tools/typespec-client-generator-core"
+  - "@azure-tools/openai-typespec/models/evals"
+  - "@azure-tools/openai-typespec/models/responses"
+
+options:
+  extension-emitter:
+    keys: x-ms-foundry-meta
+    output-format: revapi
+    output-file: agents.revapi.json
+    java-namespace: com.azure.ai.agents

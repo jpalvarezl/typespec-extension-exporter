@@ -14,16 +14,35 @@
   "scripts": {
     "build": "tsc -p .",
     "watch": "tsc -p . --watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "foundry:setup": "bash foundry/setup-foundry-deps.sh",
+    "foundry:emit:agents": "tsp compile \"$FOUNDRY_DIR/src/sdk-java-azure-ai-agents/client.tsp\" --config foundry/agents.tspconfig.yaml",
+    "foundry:emit:projects": "tsp compile \"$FOUNDRY_DIR/src/sdk-java-azure-ai-projects/client.tsp\" --config foundry/projects.tspconfig.yaml",
+    "foundry:emit": "npm run foundry:emit:agents && npm run foundry:emit:projects"
   },
   "peerDependencies": {
+    "@azure-tools/typespec-client-generator-core": ">=0.69.0",
     "@typespec/compiler": ">=1.13.0",
     "@typespec/openapi": ">=1.13.0"
   },
   "devDependencies": {
-    "@typespec/compiler": "^1.13.0",
-    "@typespec/openapi": "^1.13.0",
+    "@azure-tools/openai-typespec": "1.20.1",
+    "@azure-tools/typespec-azure-core": "0.69.0",
+    "@azure-tools/typespec-client-generator-core": "0.69.0",
+    "@typespec/compiler": "1.13.0",
+    "@typespec/events": "0.83.0",
+    "@typespec/http": "1.13.0",
+    "@typespec/openapi": "1.13.0",
+    "@typespec/openapi3": "1.13.0",
+    "@typespec/rest": "0.83.0",
+    "@typespec/sse": "0.83.0",
+    "@typespec/streams": "0.83.0",
+    "@typespec/versioning": "0.83.0",
+    "@typespec/xml": "0.83.0",
     "typescript": "^5.4.0"
+  },
+  "overrides": {
+    "@typespec/asset-emitter": "0.79.1"
   },
   "engines": {
     "node": ">=20.0.0"
