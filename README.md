@@ -1,7 +1,9 @@
-# extension-emitter
+# revapi-ignore-emitter
 
-A tiny TypeSpec emitter that scans a project for every `@extension` decorator
-(from `@typespec/openapi`) and writes the occurrences to a JSON file.
+A TypeSpec emitter that turns `@extension`-marked beta entities into a
+[revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html)
+ignore list. It can also dump every `@extension` decorator occurrence as raw
+JSON.
 
 ## Features
 
@@ -15,7 +17,7 @@ A tiny TypeSpec emitter that scans a project for every `@extension` decorator
 ## Installation
 
 ```bash
-npm install extension-emitter
+npm install revapi-ignore-emitter
 ```
 
 The emitter has `@typespec/compiler` and `@typespec/openapi` as peer
@@ -27,17 +29,17 @@ mode), so they must be present in your TypeSpec project.
 Run it as part of `tsp compile`:
 
 ```bash
-tsp compile <path> --emit extension-emitter
+tsp compile <path> --emit revapi-ignore-emitter
 ```
 
 This writes `extensions.json` into the emitter output directory
-(`tsp-output/extension-emitter/` by default).
+(`tsp-output/revapi-ignore-emitter/` by default).
 
 You can also enable it from `tspconfig.yaml`:
 
 ```yaml
 emit:
-  - extension-emitter
+  - revapi-ignore-emitter
 ```
 
 ### Output shape
@@ -59,8 +61,8 @@ emit:
 
 ## Options
 
-Pass options via `--option extension-emitter.<name>=<value>` (or under
-`options.extension-emitter` in `tspconfig.yaml`).
+Pass options via `--option revapi-ignore-emitter.<name>=<value>` (or under
+`options.revapi-ignore-emitter` in `tspconfig.yaml`).
 
 | Option        | Type   | Description                                                                                                                                            |
 | ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -110,7 +112,7 @@ itself beta are omitted as redundant.
 ### Example: only models and fields
 
 ```bash
-tsp compile <path> --emit extension-emitter --option "extension-emitter.kinds=model,field"
+tsp compile <path> --emit revapi-ignore-emitter --option "revapi-ignore-emitter.kinds=model,field"
 ```
 
 ## Development
@@ -157,8 +159,8 @@ There is one config per Java SDK project, each producing its own revapi file:
 
 | Project | Config | Output |
 | --- | --- | --- |
-| `sdk-java-azure-ai-agents` | `foundry/agents.tspconfig.yaml` | `foundry/tsp-output/extension-emitter/agents.revapi.json` |
-| `sdk-java-azure-ai-projects` | `foundry/projects.tspconfig.yaml` | `foundry/tsp-output/extension-emitter/projects.revapi.json` |
+| `sdk-java-azure-ai-agents` | `foundry/agents.tspconfig.yaml` | `foundry/tsp-output/revapi-ignore-emitter/agents.revapi.json` |
+| `sdk-java-azure-ai-projects` | `foundry/projects.tspconfig.yaml` | `foundry/tsp-output/revapi-ignore-emitter/projects.revapi.json` |
 
 Each config mirrors its spec project's `imports` so all decorators and
 namespaces resolve. The Java type names, packages and public/internal placement
@@ -176,9 +178,9 @@ published/installed normally), it can be referenced by name from the spec's own
 
 ```yaml
 emit:
-  - extension-emitter
+  - revapi-ignore-emitter
 options:
-  extension-emitter:
+  revapi-ignore-emitter:
     keys: x-ms-foundry-meta
     output-format: revapi
     java-namespace: com.azure.ai.agents

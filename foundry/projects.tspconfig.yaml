@@ -12,7 +12,7 @@
 output-dir: "{cwd}/foundry/tsp-output"
 
 emit:
-  - extension-emitter
+  - revapi-ignore-emitter
 
 imports:
   - "@azure-tools/typespec-azure-core"
@@ -23,7 +23,7 @@ imports:
   - "@azure-tools/openai-typespec/models/responses"
 
 options:
-  extension-emitter:
+  revapi-ignore-emitter:
     keys: x-ms-foundry-meta
     output-format: revapi
     output-file: projects.revapi.json

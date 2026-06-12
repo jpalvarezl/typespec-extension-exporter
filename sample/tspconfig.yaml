@@ -1,2 +1,2 @@
 emit:
-  - extension-emitter
+  - revapi-ignore-emitter

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # Installs the TypeSpec libraries the Foundry spec needs (so its imports
-# resolve) AND links this local extension-emitter into the spec tree so it can
-# be referenced by name -- i.e. `--emit extension-emitter` and, ultimately, an
-# entry in the spec's own tspconfig.yaml.
+# resolve) AND links this local revapi-ignore-emitter into the spec tree so it
+# can be referenced by name -- i.e. `--emit revapi-ignore-emitter` and,
+# ultimately, an entry in the spec's own tspconfig.yaml.
 #
 # Why this is needed: TypeSpec resolves library/emitter imports using Node
 # module resolution starting from the spec file's own directory and walking up.
@@ -68,7 +68,7 @@ cat >"$TMP_MANIFEST" <<JSON
     "@typespec/streams": "0.83.0",
     "@typespec/versioning": "0.83.0",
     "@typespec/xml": "0.83.0",
-    "extension-emitter": "file:$EMITTER_DIR"
+    "revapi-ignore-emitter": "file:$EMITTER_DIR"
   },
   "overrides": {
     "@typespec/asset-emitter": "0.79.1"
@@ -85,5 +85,5 @@ echo "Installing TypeSpec libraries and linking the emitter into $FOUNDRY_DIR/no
 # Keep node_modules (gitignored); remove the temp manifest so git stays clean.
 rm -f "$TMP_MANIFEST" "$FOUNDRY_DIR/package-lock.json"
 
-echo "Done. Foundry spec libraries are installed and 'extension-emitter' is linked."
-echo "You can now use: --emit extension-emitter"
+echo "Done. Foundry spec libraries are installed and 'revapi-ignore-emitter' is linked."
+echo "You can now use: --emit revapi-ignore-emitter"
