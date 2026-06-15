@@ -1,7 +1,7 @@
 {
   "name": "revapi-ignore-emitter",
   "version": "0.1.0",
-  "description": "TypeSpec emitter that turns @extension-marked beta entities into a revapi differences ignore list (and can also dump raw @extension occurrences as JSON).",
+  "description": "TypeSpec emitter that turns @extension-marked beta entities into revapi ignores or AST annotation input (and can also dump raw @extension occurrences as JSON).",
   "type": "module",
   "main": "dist/src/index.js",
   "exports": {

@@ -2,8 +2,8 @@
 
 A TypeSpec emitter that turns `@extension`-marked beta entities into a
 [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html)
-ignore list. It can also dump every `@extension` decorator occurrence as raw
-JSON.
+ignore list or into annotation-insertion input for downstream AST customization.
+It can also dump every `@extension` decorator occurrence as raw JSON.
 
 ## Features
 
@@ -21,8 +21,9 @@ npm install revapi-ignore-emitter
 ```
 
 The emitter has `@typespec/compiler` and `@typespec/openapi` as peer
-dependencies (plus `@azure-tools/typespec-client-generator-core` for `revapi`
-mode), so they must be present in your TypeSpec project.
+dependencies (plus `@azure-tools/typespec-client-generator-core` for Java
+entity output modes like `revapi` and `tsp-ast-input`), so they must be present
+in your TypeSpec project.
 
 ## Usage
 
@@ -68,25 +69,25 @@ Pass options via `--option revapi-ignore-emitter.<name>=<value>` (or under
 | ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `keys`        | string | Comma-separated, case-sensitive extension keys to include (e.g. `x-ms-foundry-meta`). Omit to include any key. |
 | `kinds`       | string | Comma-separated, case-insensitive target kinds to include (e.g. `model,modelProperty,operation,enum,union,scalar`). The alias `field` maps to `modelProperty`. Omit to include all kinds. |
-| `output-format` | string | `raw` (default) emits raw occurrences; `revapi` emits a [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html) ignore list. |
-| `output-file` | string | Name of the JSON file to write. Defaults to `extensions.json` (raw) or `revapi.json` (revapi). |
+| `output-format` | string | `raw` (default) emits raw occurrences; `revapi` emits a [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html) ignore list; `tsp-ast-input` emits annotation-insertion requests for downstream AST customization. |
+| `output-file` | string | Name of the JSON file to write. Defaults to `extensions.json` (raw), `revapi.json` (revapi), or `tsp-ast-input.json` (tsp-ast-input). |
 
-#### revapi-mode options (used when `output-format: revapi`)
+#### Java-output options (used when `output-format` is `revapi` or `tsp-ast-input`)
 
 | Option | Type | Description |
 | --- | --- | --- |
 | `java-namespace` | string | Override for the Java base package, e.g. `com.azure.ai.agents`. When omitted, the client namespace resolved by TCGC (`@@clientNamespace(..., "java")`) is used. Set this when the Java package comes from the `typespec-java` emitter's `namespace` option instead of `@@clientNamespace`. |
 | `models-subpackage` | string | Subpackage for public models/enums. Defaults to `models`. |
 | `internal-subpackage` | string | Subpackage for non-public (internal-access) types. Defaults to `implementation.models`. |
-| `justification` | string | Base justification attached to every generated entry. The gating preview feature keys (from the `@extension` value's `required_previews`/`conditional_previews`) are appended automatically. |
+| `justification` | string | Base annotation/justification text attached to every generated Java output entry. The gating preview feature keys (from the `@extension` value's `required_previews`/`conditional_previews`) are appended automatically. |
 
-In `revapi` mode the emitter builds the TypeSpec Client Generator Core (TCGC)
-SDK model the same way the `typespec-java` emitter does, so each beta entity is
-named exactly as it appears in the generated Java SDK: `@clientName` renames are
-applied, and the public/internal `access` decides the `models` vs
-`implementation.models` subpackage. Anonymous models (e.g. request bodies) have
-no distinct public Java type and are skipped — their beta members are covered by
-the named models they originate from.
+In Java output modes (`revapi` and `tsp-ast-input`) the emitter builds the
+TypeSpec Client Generator Core (TCGC) SDK model the same way the `typespec-java`
+emitter does, so each beta entity is named exactly as it appears in the
+generated Java SDK: `@clientName` renames are applied, and the public/internal
+`access` decides the `models` vs `implementation.models` subpackage. Anonymous
+models (e.g. request bodies) have no distinct public Java type and are skipped —
+their beta members are covered by the named models they originate from.
 
 Each beta entity becomes an ignore entry whose `code` is the regex `java\..*`
 (so any breaking change on the matched element is ignored) and whose `old` is a
@@ -108,6 +109,20 @@ Type-level entities (models, enums, unions) match their own class/enum name.
 Beta properties on a non-beta model match that model's accessors
 (`...Model::(get|set|is|with)?PropertyName`); properties on a model that is
 itself beta are omitted as redundant.
+
+In `tsp-ast-input` mode, each beta entity becomes an annotation request for a
+later AST customization step. Type-level entities become `class` entries, and
+beta properties on non-beta models become `field` entries whose `member_name` is
+the generated Java member name from TCGC:
+
+```json
+{
+  "type": "field",
+  "class_name": "com.azure.ai.projects.models.CodeBasedEvaluatorDefinition",
+  "annotation_description": "Beta entity marked with @extension(\"x-ms-foundry-meta\", ...); breaking changes are accepted while the API is in preview. Gated behind preview feature(s): Evaluators=V1Preview.",
+  "member_name": "blobUrl"
+}
+```
 
 ### Example: only models and fields
 

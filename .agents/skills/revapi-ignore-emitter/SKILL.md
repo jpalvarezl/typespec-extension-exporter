@@ -1,20 +1,25 @@
 ---
 name: revapi-ignore-emitter
-description: 'Build, configure, and run the revapi-ignore-emitter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; dumping raw @extension occurrences as JSON; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR setup flow.'
+description: 'Build, configure, and run the revapi-ignore-emitter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; generating tsp-ast-input annotation customization JSON; dumping raw @extension occurrences as JSON; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR setup flow.'
 ---
 
 # revapi-ignore-emitter
 
-A TypeSpec emitter (TypeSpec compiler v1.13) with two output modes:
+A TypeSpec emitter (TypeSpec compiler v1.13) with three output modes:
 
 - **`raw`** (default): a JSON array of every `@extension` decorator occurrence
   (from `@typespec/openapi`) with source locations.
 - **`revapi`**: a [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html)
   ignore list. Each `@extension`-marked beta entity becomes an `ignore` entry
-  matching its **Java** fully-qualified name. Java names/packages come from
-  TCGC (`@azure-tools/typespec-client-generator-core`) using the Java emitter
-  scope, so `@clientName` renames and public/internal `access` are honoured —
-  the same model the `typespec-java` emitter is built on.
+  matching its **Java** fully-qualified name.
+- **`tsp-ast-input`**: a JSON array of annotation-insertion requests for a
+  downstream AST customization step. Each entry has `type` (`class` or
+  `field`), `class_name`, `annotation_description`, and field entries also have
+  `member_name` with the generated Java field/member name.
+
+Java names/packages come from TCGC (`@azure-tools/typespec-client-generator-core`)
+using the Java emitter scope, so `@clientName` renames and public/internal
+`access` are honoured — the same model the `typespec-java` emitter is built on.
 
 The primary use case is generating revapi suppressions for beta
 (`x-ms-foundry-meta`) Foundry entities in the Azure Java SDK.
@@ -23,7 +28,7 @@ The primary use case is generating revapi suppressions for beta
 
 | Path | Purpose |
 |------|---------|
-| [src/index.ts](../../../src/index.ts) | `$onEmit` entry; raw + revapi collection and transform |
+| [src/index.ts](../../../src/index.ts) | `$onEmit` entry; raw + Java beta entity collection and output transforms |
 | [src/lib.ts](../../../src/lib.ts) | `$lib` definition + options schema (`ExtensionEmitterOptions`) |
 | [foundry/setup-foundry-deps.sh](../../../foundry/setup-foundry-deps.sh) | Installs spec libs + symlinks the emitter into the spec tree |
 | [foundry/agents.tspconfig.yaml](../../../foundry/agents.tspconfig.yaml) | Config for `sdk-java-azure-ai-agents` |
@@ -47,12 +52,12 @@ comma-separated strings.
 |--------|------|---------|-------------|
 | `keys` | string (CSV, case-sensitive) | all keys | Only include occurrences whose `@extension` key is in this list, e.g. `x-ms-foundry-meta`. |
 | `kinds` | string (CSV, case-insensitive) | all kinds | Only include these TypeSpec target kinds: `model,modelProperty,operation,enum,union,scalar,...`. Alias `field` → `modelProperty`. **Raw mode only** (revapi mode walks the TCGC model, not kinds). |
-| `output-format` | `raw` \| `revapi` | `raw` | Output shape (see modes above). |
-| `output-file` | string | `extensions.json` (raw) / `revapi.json` (revapi) | File name written into the emitter output dir. |
-| `java-namespace` | string | TCGC client namespace | revapi only. Override the Java base package, e.g. `com.azure.ai.agents`. **Set this when the package comes from the `typespec-java` emitter's `namespace` option rather than `@@clientNamespace(..., "java")`** — projects has no `@@clientNamespace`, so it needs the override. |
-| `models-subpackage` | string | `models` | revapi only. Subpackage for public types. |
-| `internal-subpackage` | string | `implementation.models` | revapi only. Subpackage for non-public (internal `access`) types. |
-| `justification` | string | preview-accepted text | revapi only. Base justification on each entry. Gating preview keys parsed from the `@extension` value's `required_previews`/`conditional_previews` arrays are appended automatically (e.g. "Gated behind preview feature(s): CodeAgents=V1Preview."). |
+| `output-format` | `raw` \| `revapi` \| `tsp-ast-input` | `raw` | Output shape (see modes above). |
+| `output-file` | string | `extensions.json` (raw) / `revapi.json` (revapi) / `tsp-ast-input.json` (tsp-ast-input) | File name written into the emitter output dir. |
+| `java-namespace` | string | TCGC client namespace | Java output modes only. Override the Java base package, e.g. `com.azure.ai.agents`. **Set this when the package comes from the `typespec-java` emitter's `namespace` option rather than `@@clientNamespace(..., "java")`** — projects has no `@@clientNamespace`, so it needs the override. |
+| `models-subpackage` | string | `models` | Java output modes only. Subpackage for public types. |
+| `internal-subpackage` | string | `implementation.models` | Java output modes only. Subpackage for non-public (internal `access`) types. |
+| `justification` | string | preview-accepted text | Java output modes only. Base annotation/justification on each entry. Gating preview keys parsed from the `@extension` value's `required_previews`/`conditional_previews` arrays are appended automatically (e.g. "Gated behind preview feature(s): CodeAgents=V1Preview."). |
 
 ### revapi `old` regex shape
 
@@ -64,6 +69,16 @@ comma-separated strings.
   a model that is itself beta are skipped (covered by the type entry).
 - Anonymous models (request bodies, empty namespace) are skipped.
 - Every entry uses `code: "java\\..*"` (matches any breaking-change code).
+
+### tsp-ast-input shape
+
+- Type-level entities (model/enum/union):
+  `{ "type": "class", "class_name": "<fqn>", "annotation_description": "..." }`.
+- Beta property on a non-beta model:
+  `{ "type": "field", "class_name": "<containerFqn>", "annotation_description": "...", "member_name": "<javaMemberName>" }`.
+- `member_name` is the generated Java field/member name from TCGC (camelCase,
+  reflecting Java `@clientName` customizations), not the accessor name.
+- Anonymous models are skipped using the same rules as revapi mode.
 
 ## Build
 
@@ -146,8 +161,9 @@ git -C /path/to/azure-rest-api-specs status --short specification/ai-foundry/dat
   actually runs in the linked spec tree.
 - `kinds` and `keys` must be comma-separated **strings**; array values fail
   schema validation.
-- Property names from TCGC may be snake_case or camelCase; the emitter
-  PascalCases them for the Java accessor regex.
+- Property names from TCGC may be snake_case or camelCase; revapi mode
+  PascalCases them for the Java accessor regex. `tsp-ast-input` mode uses the
+  TCGC property/member name directly in `member_name`.
 - `@extension` is matched by name+namespace (`TypeSpec.OpenAPI`), not function
   identity, to survive the emitter and spec resolving different
   `@typespec/openapi` instances.

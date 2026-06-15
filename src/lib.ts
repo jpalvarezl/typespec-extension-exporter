@@ -20,12 +20,14 @@ export interface ExtensionEmitterOptions {
    * - "raw" (default): a JSON array of raw occurrences with source locations.
    * - "revapi": a JSON array of revapi `differences` ignore entries, mapping
    *   each beta entity to its Java fully-qualified name.
+   * - "tsp-ast-input": a JSON array of annotation insertion requests for
+   *   downstream AST customization.
    */
-  "output-format"?: "raw" | "revapi";
+  "output-format"?: "raw" | "revapi" | "tsp-ast-input";
   /** Name of the JSON file to write into the emitter output directory. */
   "output-file"?: string;
 
-  // --- revapi-mode options (only used when output-format is "revapi") ---
+  // --- Java-output options (used when output-format is "revapi" or "tsp-ast-input") ---
 
   /**
    * Optional override for the Java base package, e.g. "com.azure.ai.agents".
@@ -37,7 +39,7 @@ export interface ExtensionEmitterOptions {
   "models-subpackage"?: string;
   /** Subpackage where internal (non-public) types live. Defaults to "implementation.models". */
   "internal-subpackage"?: string;
-  /** Justification text attached to each generated revapi entry. */
+  /** Base annotation/justification text attached to each generated Java output entry. */
   justification?: string;
 }
 
@@ -47,7 +49,11 @@ const EmitterOptionsSchema: JSONSchemaType<ExtensionEmitterOptions> = {
   properties: {
     keys: { type: "string", nullable: true },
     kinds: { type: "string", nullable: true },
-    "output-format": { type: "string", enum: ["raw", "revapi"], nullable: true },
+    "output-format": {
+      type: "string",
+      enum: ["raw", "revapi", "tsp-ast-input"],
+      nullable: true,
+    },
     "output-file": { type: "string", nullable: true },
     "java-namespace": { type: "string", nullable: true },
     "models-subpackage": { type: "string", nullable: true },
