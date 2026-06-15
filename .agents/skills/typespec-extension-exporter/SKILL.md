@@ -21,8 +21,9 @@ Java names/packages come from TCGC (`@azure-tools/typespec-client-generator-core
 using the Java emitter scope, so `@clientName` renames and public/internal
 `access` are honoured — the same model the `typespec-java` emitter is built on.
 
-The primary use case is generating revapi suppressions for beta
-(`x-ms-foundry-meta`) Foundry entities in the Azure Java SDK.
+The primary use case is exporting beta (`x-ms-foundry-meta`) Foundry entities
+for Azure Java SDK workflows, especially revapi suppressions and AST annotation
+customization input.
 
 ## Project layout
 
@@ -33,7 +34,7 @@ The primary use case is generating revapi suppressions for beta
 | [foundry/setup-foundry-deps.sh](../../../foundry/setup-foundry-deps.sh) | Installs spec libs + symlinks the emitter into the spec tree |
 | [foundry/agents.tspconfig.yaml](../../../foundry/agents.tspconfig.yaml) | Config for `sdk-java-azure-ai-agents` |
 | [foundry/projects.tspconfig.yaml](../../../foundry/projects.tspconfig.yaml) | Config for `sdk-java-azure-ai-projects` |
-| `foundry/tsp-output/typespec-extension-exporter/` | Generated `*.revapi.json` output |
+| `foundry/tsp-output/typespec-extension-exporter/` | Generated Foundry outputs (`*.revapi.*`, `*.tsp-ast-input.*`) |
 | [sample/](../../../sample/) | Minimal standalone test spec |
 
 The emitter is registered under the name **`typespec-extension-exporter`** (matches
@@ -93,7 +94,7 @@ npm run watch      # rebuild on change (symlinked into spec tree, picked up live
 
 ```bash
 npx tsp compile sample/main.tsp --config sample/tspconfig.yaml
-# raw occurrences → sample/tsp-output/typespec-extension-exporter/extensions.json
+# raw occurrences → tsp-output/typespec-extension-exporter/extensions.json
 ```
 
 ## Run against the Foundry spec
@@ -142,7 +143,7 @@ all decorators/namespaces resolve, and pin `java-namespace`.
 
 ```bash
 node -e "const a=require('./foundry/tsp-output/typespec-extension-exporter/agents.revapi.json'),p=require('./foundry/tsp-output/typespec-extension-exporter/projects.revapi.json');console.log('agents='+a.length,'projects='+p.length);"
-# expected order of magnitude: agents≈74, projects≈26
+# expected order of magnitude: agents≈74, projects≈25
 
 # spec repo must stay clean:
 git -C /path/to/azure-rest-api-specs status --short specification/ai-foundry/data-plane/Foundry/
