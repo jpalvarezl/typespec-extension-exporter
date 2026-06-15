@@ -4,6 +4,7 @@ import {
   type SdkModelType,
   type SdkType,
 } from "@azure-tools/typespec-client-generator-core";
+import { stringify as stringifyYaml } from "yaml";
 import {
   EmitContext,
   getNamespaceFullName,
@@ -48,6 +49,17 @@ export interface RevapiEntry {
   old: string;
   justification: string;
 }
+
+/** A single annotation-insertion request for downstream AST customization. */
+export interface TspAstInputEntry {
+  type: "field" | "class";
+  class_name: string;
+  annotation_description: string;
+  member_name?: string;
+}
+
+type OutputShape = NonNullable<ExtensionEmitterOptions["output-shape"]>;
+type OutputFormat = NonNullable<ExtensionEmitterOptions["output-format"]>;
 
 /** Listener callback names (uncapitalized type kinds) we attach the collector to. */
 const VISITED_KINDS = [
@@ -189,7 +201,7 @@ function collectRawOccurrences(
   return occurrences;
 }
 
-// --- revapi mode (via TCGC) ----------------------------------------------
+// --- Java beta entity modes (via TCGC) ------------------------------------
 
 /**
  * revapi difference `code` applied to every generated entry. The `java\..*`
@@ -344,9 +356,16 @@ async function collectBetaFromTcgc(
   return { types, properties };
 }
 
-/** Accumulator for a single revapi entry, merging preview keys across sources. */
-interface RevapiAccumulator {
-  old: string;
+/** Shared Java naming options for outputs based on generated Java symbols. */
+interface JavaNameOptions {
+  namespaceOverride?: string;
+  modelsSubpackage: string;
+  internalSubpackage: string;
+}
+
+/** Accumulator for an entry whose annotation/justification merges preview keys. */
+interface PreviewAccumulator<T> {
+  entry: T;
   previews: Set<string>;
 }
 
@@ -367,13 +386,44 @@ function collectPreviews(target: Set<string>, value: unknown): void {
   }
 }
 
-/** Build the justification text, appending the gating preview feature keys. */
-function buildJustification(base: string, previews: Set<string>): string {
+/** Build the default annotation/justification text. */
+function getBaseAnnotationDescription(options: ExtensionEmitterOptions): string {
+  return options.justification ?? "Preview API.";
+}
+
+/** Resolve the Java naming options shared by revapi and tsp-ast-input modes. */
+function getJavaNameOptions(options: ExtensionEmitterOptions): JavaNameOptions {
+  return {
+    namespaceOverride: options["java-namespace"],
+    modelsSubpackage: options["models-subpackage"] ?? "models",
+    internalSubpackage:
+      options["internal-subpackage"] ?? "implementation.models",
+  };
+}
+
+/** Build the Java fully-qualified name for a generated type. */
+function getJavaTypeFqn(
+  entity: { name: string; namespace: string; access: "public" | "internal" },
+  options: JavaNameOptions,
+): string {
+  const base = options.namespaceOverride ?? entity.namespace;
+  const subpackage =
+    entity.access === "internal"
+      ? options.internalSubpackage
+      : options.modelsSubpackage;
+  return [base, subpackage, entity.name]
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join(".");
+}
+
+/** Build the annotation/justification text, appending the gating preview feature keys. */
+function buildAnnotationDescription(base: string, previews: Set<string>): string {
   if (previews.size === 0) {
     return base;
   }
   const keys = [...previews].sort().join(", ");
-  return `${base} Gated behind preview feature(s): ${keys}.`;
+  return `${base} ${keys}`;
 }
 
 /**
@@ -389,46 +439,33 @@ function toRevapiEntries(
   collected: { types: BetaType[]; properties: BetaProperty[] },
   options: ExtensionEmitterOptions,
 ): RevapiEntry[] {
-  const modelsSubpackage = options["models-subpackage"] ?? "models";
-  const internalSubpackage =
-    options["internal-subpackage"] ?? "implementation.models";
-  const namespaceOverride = options["java-namespace"];
-  const baseJustification =
-    options.justification ??
-    'Beta entity marked with @extension("x-ms-foundry-meta", ...); breaking changes are accepted while the API is in preview.';
+  const javaNames = getJavaNameOptions(options);
+  const baseJustification = getBaseAnnotationDescription(options);
 
-  const typeFqn = (entity: {
-    name: string;
-    namespace: string;
-    access: "public" | "internal";
-  }): string => {
-    const base = namespaceOverride ?? entity.namespace;
-    const subpackage =
-      entity.access === "internal" ? internalSubpackage : modelsSubpackage;
-    return `${base}.${subpackage}.${entity.name}`;
-  };
-
-  const byOld = new Map<string, RevapiAccumulator>();
+  const byOld = new Map<string, PreviewAccumulator<{ old: string }>>();
   const accumulate = (old: string, value: unknown): void => {
     let acc = byOld.get(old);
     if (!acc) {
-      acc = { old, previews: new Set() };
+      acc = { entry: { old }, previews: new Set() };
       byOld.set(old, acc);
     }
     collectPreviews(acc.previews, value);
   };
 
   for (const type of collected.types) {
-    const fqn = typeFqn(type);
+    const fqn = getJavaTypeFqn(type, javaNames);
     accumulate(`.*\\b${escapeRegExp(fqn)}(?![\\w$]).*`, type.value);
   }
 
   for (const prop of collected.properties) {
-    const containerFqn = typeFqn({
-      name: prop.containerName,
-      namespace: prop.containerNamespace,
-      access: prop.containerAccess,
-    });
+    const containerFqn = getJavaTypeFqn(
+      {
+        name: prop.containerName,
+        namespace: prop.containerNamespace,
+        access: prop.containerAccess,
+      },
+      javaNames,
+    );
     const accessor = toPascalCase(prop.propertyName);
     accumulate(
       `.*\\b${escapeRegExp(containerFqn)}::(get|set|is|with)?${escapeRegExp(
@@ -439,14 +476,162 @@ function toRevapiEntries(
   }
 
   return [...byOld.values()]
-    .sort((a, b) => a.old.localeCompare(b.old))
+    .sort((a, b) => a.entry.old.localeCompare(b.entry.old))
     .map((acc) => ({
       ignore: true as const,
       regex: true as const,
       code: REVAPI_CODE,
-      old: acc.old,
-      justification: buildJustification(baseJustification, acc.previews),
+      old: acc.entry.old,
+      justification: buildAnnotationDescription(baseJustification, acc.previews),
     }));
+}
+
+/**
+ * Transform collected beta entities into tsp-ast-input annotation requests.
+ *
+ * Class entries target the generated Java type FQN. Field entries target the
+ * containing generated Java type FQN plus the generated Java member name from
+ * TCGC (camelCase, reflecting Java `@clientName` customizations).
+ */
+function toTspAstInputEntries(
+  collected: { types: BetaType[]; properties: BetaProperty[] },
+  options: ExtensionEmitterOptions,
+): TspAstInputEntry[] {
+  const javaNames = getJavaNameOptions(options);
+  const baseDescription = getBaseAnnotationDescription(options);
+
+  const byTarget = new Map<string, PreviewAccumulator<TspAstInputEntry>>();
+  const accumulate = (entry: TspAstInputEntry, value: unknown): void => {
+    const key = `${entry.type}|${entry.class_name}|${entry.member_name ?? ""}`;
+    let acc = byTarget.get(key);
+    if (!acc) {
+      acc = { entry, previews: new Set() };
+      byTarget.set(key, acc);
+    }
+    collectPreviews(acc.previews, value);
+  };
+
+  for (const type of collected.types) {
+    accumulate(
+      {
+        type: "class",
+        class_name: getJavaTypeFqn(type, javaNames),
+        annotation_description: baseDescription,
+      },
+      type.value,
+    );
+  }
+
+  for (const prop of collected.properties) {
+    const containerFqn = getJavaTypeFqn(
+      {
+        name: prop.containerName,
+        namespace: prop.containerNamespace,
+        access: prop.containerAccess,
+      },
+      javaNames,
+    );
+    accumulate(
+      {
+        type: "field",
+        class_name: containerFqn,
+        annotation_description: baseDescription,
+        member_name: prop.propertyName,
+      },
+      prop.value,
+    );
+  }
+
+  return [...byTarget.values()]
+    .sort((a, b) => {
+      const classCompare = a.entry.class_name.localeCompare(b.entry.class_name);
+      if (classCompare !== 0) {
+        return classCompare;
+      }
+      return (a.entry.member_name ?? "").localeCompare(
+        b.entry.member_name ?? "",
+      );
+    })
+    .map((acc) => ({
+      ...acc.entry,
+      annotation_description: buildAnnotationDescription(
+        baseDescription,
+        acc.previews,
+      ),
+    }));
+}
+
+// --- serialization ---------------------------------------------------------
+
+function getDefaultOutputFile(shape: OutputShape, format: OutputFormat): string {
+  const baseName =
+    shape === "raw"
+      ? "extensions"
+      : shape === "revapi"
+        ? "revapi"
+        : "tsp-ast-input";
+  const extension = format === "yaml" ? "yaml" : format;
+  return `${baseName}.${extension}`;
+}
+
+function getCsvHeaders(shape: OutputShape): string[] {
+  switch (shape) {
+    case "raw":
+      return [
+        "key",
+        "value",
+        "targetKind",
+        "targetName",
+        "namespace",
+        "file",
+        "line",
+        "column",
+      ];
+    case "revapi":
+      return ["ignore", "regex", "code", "old", "justification"];
+    case "tsp-ast-input":
+      return ["type", "class_name", "annotation_description", "member_name"];
+  }
+}
+
+function stringifyCsvValue(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+  const text =
+    typeof value === "object" ? JSON.stringify(value) : String(value);
+  if (/[";\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function serializeCsv(payload: unknown, shape: OutputShape): string {
+  const headers = getCsvHeaders(shape);
+  const rows = Array.isArray(payload) ? payload : [];
+  const lines = [headers.join(";")];
+  for (const row of rows) {
+    const record = row as Record<string, unknown>;
+    lines.push(
+      headers.map((header) => stringifyCsvValue(record[header])).join(";"),
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function serializePayload(
+  payload: unknown,
+  shape: OutputShape,
+  format: OutputFormat,
+): string {
+  switch (format) {
+    case "json":
+      return JSON.stringify(payload, null, 2);
+    case "yaml":
+      return stringifyYaml(payload);
+    case "csv":
+      return serializeCsv(payload, shape);
+  }
 }
 
 export async function $onEmit(
@@ -458,12 +643,16 @@ export async function $onEmit(
   const kindFilter = parseKindFilter(options.kinds);
   const keyFilter = parseKeyFilter(options.keys);
 
-  const format = options["output-format"] ?? "raw";
+  const shape = options["output-shape"] ?? "raw";
+  const format = options["output-format"] ?? "json";
 
   let payload: unknown;
-  if (format === "revapi") {
+  if (shape === "revapi" || shape === "tsp-ast-input") {
     const collected = await collectBetaFromTcgc(context, keyFilter);
-    payload = toRevapiEntries(collected, options);
+    payload =
+      shape === "revapi"
+        ? toRevapiEntries(collected, options)
+        : toTspAstInputEntries(collected, options);
   } else {
     payload = collectRawOccurrences(context, kindFilter, keyFilter);
   }
@@ -472,10 +661,13 @@ export async function $onEmit(
     return;
   }
 
-  const defaultFile = format === "revapi" ? "revapi.json" : "extensions.json";
-  const fileName = options["output-file"] ?? defaultFile;
+  const fileName =
+    options["output-file"] ?? getDefaultOutputFile(shape, format);
 
   const outputFile = resolvePath(context.emitterOutputDir, fileName);
   await program.host.mkdirp(context.emitterOutputDir);
-  await program.host.writeFile(outputFile, JSON.stringify(payload, null, 2));
+  await program.host.writeFile(
+    outputFile,
+    serializePayload(payload, shape, format),
+  );
 }
