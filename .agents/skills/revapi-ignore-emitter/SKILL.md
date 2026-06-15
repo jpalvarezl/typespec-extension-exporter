@@ -1,18 +1,18 @@
 ---
 name: revapi-ignore-emitter
-description: 'Build, configure, and run the revapi-ignore-emitter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; generating tsp-ast-input annotation customization JSON; dumping raw @extension occurrences as JSON; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR setup flow.'
+description: 'Build, configure, and run the revapi-ignore-emitter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; generating tsp-ast-input annotation customization data; dumping raw @extension occurrences; serializing output as JSON/YAML/CSV; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-shape, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR setup flow.'
 ---
 
 # revapi-ignore-emitter
 
-A TypeSpec emitter (TypeSpec compiler v1.13) with three output modes:
+A TypeSpec emitter (TypeSpec compiler v1.13) with three output shapes and JSON/YAML/CSV serialization:
 
-- **`raw`** (default): a JSON array of every `@extension` decorator occurrence
+- **`raw`** (default): every `@extension` decorator occurrence
   (from `@typespec/openapi`) with source locations.
 - **`revapi`**: a [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html)
   ignore list. Each `@extension`-marked beta entity becomes an `ignore` entry
   matching its **Java** fully-qualified name.
-- **`tsp-ast-input`**: a JSON array of annotation-insertion requests for a
+- **`tsp-ast-input`**: annotation-insertion requests for a
   downstream AST customization step. Each entry has `type` (`class` or
   `field`), `class_name`, `annotation_description`, and field entries also have
   `member_name` with the generated Java field/member name.
@@ -51,13 +51,14 @@ comma-separated strings.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `keys` | string (CSV, case-sensitive) | all keys | Only include occurrences whose `@extension` key is in this list, e.g. `x-ms-foundry-meta`. |
-| `kinds` | string (CSV, case-insensitive) | all kinds | Only include these TypeSpec target kinds: `model,modelProperty,operation,enum,union,scalar,...`. Alias `field` → `modelProperty`. **Raw mode only** (revapi mode walks the TCGC model, not kinds). |
-| `output-format` | `raw` \| `revapi` \| `tsp-ast-input` | `raw` | Output shape (see modes above). |
-| `output-file` | string | `extensions.json` (raw) / `revapi.json` (revapi) / `tsp-ast-input.json` (tsp-ast-input) | File name written into the emitter output dir. |
+| `kinds` | string (CSV, case-insensitive) | all kinds | Only include these TypeSpec target kinds: `model,modelProperty,operation,enum,union,scalar,...`. Alias `field` → `modelProperty`. **Raw mode only** (Java output modes walk the TCGC model, not kinds). |
+| `output-shape` | `raw` \| `revapi` \| `tsp-ast-input` | `raw` | Semantic output shape (see modes above). |
+| `output-format` | `json` \| `yaml` \| `csv` | `json` | Serialization format. CSV output uses `;` as the delimiter. |
+| `output-file` | string | `extensions.<format>` (raw) / `revapi.<format>` (revapi) / `tsp-ast-input.<format>` (tsp-ast-input) | File name written into the emitter output dir. |
 | `java-namespace` | string | TCGC client namespace | Java output modes only. Override the Java base package, e.g. `com.azure.ai.agents`. **Set this when the package comes from the `typespec-java` emitter's `namespace` option rather than `@@clientNamespace(..., "java")`** — projects has no `@@clientNamespace`, so it needs the override. |
 | `models-subpackage` | string | `models` | Java output modes only. Subpackage for public types. |
 | `internal-subpackage` | string | `implementation.models` | Java output modes only. Subpackage for non-public (internal `access`) types. |
-| `justification` | string | preview-accepted text | Java output modes only. Base annotation/justification on each entry. Gating preview keys parsed from the `@extension` value's `required_previews`/`conditional_previews` arrays are appended automatically (e.g. "Gated behind preview feature(s): CodeAgents=V1Preview."). |
+| `justification` | string | `Preview API.` | Java output modes only. Base annotation/justification on each entry. Gating preview keys parsed from the `@extension` value's `required_previews`/`conditional_previews` arrays are appended automatically (e.g. `Preview API. CodeAgents=V1Preview`). |
 
 ### revapi `old` regex shape
 

@@ -4,6 +4,7 @@ import {
   type SdkModelType,
   type SdkType,
 } from "@azure-tools/typespec-client-generator-core";
+import { stringify as stringifyYaml } from "yaml";
 import {
   EmitContext,
   getNamespaceFullName,
@@ -56,6 +57,9 @@ export interface TspAstInputEntry {
   annotation_description: string;
   member_name?: string;
 }
+
+type OutputShape = NonNullable<ExtensionEmitterOptions["output-shape"]>;
+type OutputFormat = NonNullable<ExtensionEmitterOptions["output-format"]>;
 
 /** Listener callback names (uncapitalized type kinds) we attach the collector to. */
 const VISITED_KINDS = [
@@ -386,7 +390,7 @@ function collectPreviews(target: Set<string>, value: unknown): void {
 function getBaseAnnotationDescription(options: ExtensionEmitterOptions): string {
   return (
     options.justification ??
-    'Beta entity marked with @extension("x-ms-foundry-meta", ...); breaking changes are accepted while the API is in preview.'
+    "Preview API."
   );
 }
 
@@ -419,7 +423,7 @@ function buildAnnotationDescription(base: string, previews: Set<string>): string
     return base;
   }
   const keys = [...previews].sort().join(", ");
-  return `${base} Gated behind preview feature(s): ${keys}.`;
+  return `${base} ${keys}`;
 }
 
 /**
@@ -557,6 +561,79 @@ function toTspAstInputEntries(
     }));
 }
 
+// --- serialization ---------------------------------------------------------
+
+function getDefaultOutputFile(shape: OutputShape, format: OutputFormat): string {
+  const baseName =
+    shape === "raw"
+      ? "extensions"
+      : shape === "revapi"
+        ? "revapi"
+        : "tsp-ast-input";
+  const extension = format === "yaml" ? "yaml" : format;
+  return `${baseName}.${extension}`;
+}
+
+function getCsvHeaders(shape: OutputShape): string[] {
+  switch (shape) {
+    case "raw":
+      return [
+        "key",
+        "value",
+        "targetKind",
+        "targetName",
+        "namespace",
+        "file",
+        "line",
+        "column",
+      ];
+    case "revapi":
+      return ["ignore", "regex", "code", "old", "justification"];
+    case "tsp-ast-input":
+      return ["type", "class_name", "annotation_description", "member_name"];
+  }
+}
+
+function stringifyCsvValue(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+  const text =
+    typeof value === "object" ? JSON.stringify(value) : String(value);
+  if (/[";\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function serializeCsv(payload: unknown, shape: OutputShape): string {
+  const headers = getCsvHeaders(shape);
+  const rows = Array.isArray(payload) ? payload : [];
+  const lines = [headers.join(";")];
+  for (const row of rows) {
+    const record = row as Record<string, unknown>;
+    lines.push(
+      headers.map((header) => stringifyCsvValue(record[header])).join(";"),
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function serializePayload(
+  payload: unknown,
+  shape: OutputShape,
+  format: OutputFormat,
+): string {
+  switch (format) {
+    case "json":
+      return JSON.stringify(payload, null, 2);
+    case "yaml":
+      return stringifyYaml(payload);
+    case "csv":
+      return serializeCsv(payload, shape);
+  }
+}
+
 export async function $onEmit(
   context: EmitContext<ExtensionEmitterOptions>,
 ): Promise<void> {
@@ -566,13 +643,14 @@ export async function $onEmit(
   const kindFilter = parseKindFilter(options.kinds);
   const keyFilter = parseKeyFilter(options.keys);
 
-  const format = options["output-format"] ?? "raw";
+  const shape = options["output-shape"] ?? "raw";
+  const format = options["output-format"] ?? "json";
 
   let payload: unknown;
-  if (format === "revapi" || format === "tsp-ast-input") {
+  if (shape === "revapi" || shape === "tsp-ast-input") {
     const collected = await collectBetaFromTcgc(context, keyFilter);
     payload =
-      format === "revapi"
+      shape === "revapi"
         ? toRevapiEntries(collected, options)
         : toTspAstInputEntries(collected, options);
   } else {
@@ -583,15 +661,13 @@ export async function $onEmit(
     return;
   }
 
-  const defaultFile =
-    format === "revapi"
-      ? "revapi.json"
-      : format === "tsp-ast-input"
-        ? "tsp-ast-input.json"
-        : "extensions.json";
-  const fileName = options["output-file"] ?? defaultFile;
+  const fileName =
+    options["output-file"] ?? getDefaultOutputFile(shape, format);
 
   const outputFile = resolvePath(context.emitterOutputDir, fileName);
   await program.host.mkdirp(context.emitterOutputDir);
-  await program.host.writeFile(outputFile, JSON.stringify(payload, null, 2));
+  await program.host.writeFile(
+    outputFile,
+    serializePayload(payload, shape, format),
+  );
 }

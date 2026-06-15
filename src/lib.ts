@@ -16,18 +16,20 @@ export interface ExtensionEmitterOptions {
    */
   kinds?: string;
   /**
-   * Output format:
-   * - "raw" (default): a JSON array of raw occurrences with source locations.
-   * - "revapi": a JSON array of revapi `differences` ignore entries, mapping
-   *   each beta entity to its Java fully-qualified name.
-   * - "tsp-ast-input": a JSON array of annotation insertion requests for
-   *   downstream AST customization.
+   * Output shape:
+   * - "raw" (default): raw @extension occurrences with source locations.
+   * - "revapi": revapi `differences` ignore entries, mapping each beta entity
+   *   to its Java fully-qualified name.
+   * - "tsp-ast-input": annotation insertion requests for downstream AST
+   *   customization.
    */
-  "output-format"?: "raw" | "revapi" | "tsp-ast-input";
-  /** Name of the JSON file to write into the emitter output directory. */
+  "output-shape"?: "raw" | "revapi" | "tsp-ast-input";
+  /** Output serialization format. Defaults to "json". */
+  "output-format"?: "json" | "yaml" | "csv";
+  /** Name of the output file to write into the emitter output directory. */
   "output-file"?: string;
 
-  // --- Java-output options (used when output-format is "revapi" or "tsp-ast-input") ---
+  // --- Java-output options (used when output-shape is "revapi" or "tsp-ast-input") ---
 
   /**
    * Optional override for the Java base package, e.g. "com.azure.ai.agents".
@@ -49,9 +51,14 @@ const EmitterOptionsSchema: JSONSchemaType<ExtensionEmitterOptions> = {
   properties: {
     keys: { type: "string", nullable: true },
     kinds: { type: "string", nullable: true },
-    "output-format": {
+    "output-shape": {
       type: "string",
       enum: ["raw", "revapi", "tsp-ast-input"],
+      nullable: true,
+    },
+    "output-format": {
+      type: "string",
+      enum: ["json", "yaml", "csv"],
       nullable: true,
     },
     "output-file": { type: "string", nullable: true },

@@ -24,13 +24,18 @@ imports:
 options:
   revapi-ignore-emitter:
     keys: x-ms-foundry-meta
-    # Default Foundry flow generates revapi suppressions.
+    # Default Foundry flow generates revapi suppressions as JSON.
     # To generate AST customization annotation input instead, use:
-    #   output-format: tsp-ast-input
+    #   output-shape: tsp-ast-input
     #   output-file: agents.tsp-ast-input.json
+    # To serialize the selected shape differently, update output-format and
+    # output-file together (or remove output-file to use the default extension):
+    #   output-format: yaml # or json/csv
+    #   output-file: agents.revapi.yaml
     # Or override from the CLI:
-    #   --option revapi-ignore-emitter.output-format=tsp-ast-input
+    #   --option revapi-ignore-emitter.output-shape=tsp-ast-input
     #   --option revapi-ignore-emitter.output-file=agents.tsp-ast-input.json
-    output-format: revapi
+    output-shape: revapi
+    output-format: json
     output-file: agents.revapi.json
     java-namespace: com.azure.ai.agents
