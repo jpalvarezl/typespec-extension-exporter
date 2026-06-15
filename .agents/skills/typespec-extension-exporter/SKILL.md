@@ -1,9 +1,9 @@
 ---
-name: revapi-ignore-emitter
-description: 'Build, configure, and run the revapi-ignore-emitter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; generating tsp-ast-input annotation customization data; dumping raw @extension occurrences; serializing output as JSON/YAML/CSV; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-shape, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR setup flow.'
+name: typespec-extension-exporter
+description: 'Build, configure, and run the typespec-extension-exporter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; generating tsp-ast-input annotation customization data; dumping raw @extension occurrences; serializing output as JSON/YAML/CSV; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-shape, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR setup flow.'
 ---
 
-# revapi-ignore-emitter
+# typespec-extension-exporter
 
 A TypeSpec emitter (TypeSpec compiler v1.13) with three output shapes and JSON/YAML/CSV serialization:
 
@@ -33,17 +33,17 @@ The primary use case is generating revapi suppressions for beta
 | [foundry/setup-foundry-deps.sh](../../../foundry/setup-foundry-deps.sh) | Installs spec libs + symlinks the emitter into the spec tree |
 | [foundry/agents.tspconfig.yaml](../../../foundry/agents.tspconfig.yaml) | Config for `sdk-java-azure-ai-agents` |
 | [foundry/projects.tspconfig.yaml](../../../foundry/projects.tspconfig.yaml) | Config for `sdk-java-azure-ai-projects` |
-| `foundry/tsp-output/revapi-ignore-emitter/` | Generated `*.revapi.json` output |
+| `foundry/tsp-output/typespec-extension-exporter/` | Generated `*.revapi.json` output |
 | [sample/](../../../sample/) | Minimal standalone test spec |
 
-The emitter is registered under the name **`revapi-ignore-emitter`** (matches
+The emitter is registered under the name **`typespec-extension-exporter`** (matches
 `package.json` `name` and `$lib.name`). The output directory is derived from
-this name: `tsp-output/revapi-ignore-emitter/`.
+this name: `tsp-output/typespec-extension-exporter/`.
 
 ## Configuration options
 
-Pass via `--option revapi-ignore-emitter.<name>=<value>` or under
-`options.revapi-ignore-emitter` in a `tspconfig.yaml`. Schema lives in
+Pass via `--option typespec-extension-exporter.<name>=<value>` or under
+`options.typespec-extension-exporter` in a `tspconfig.yaml`. Schema lives in
 [src/lib.ts](../../../src/lib.ts) (`additionalProperties: false`, so unknown
 keys fail validation). Array-style values are NOT supported — use
 comma-separated strings.
@@ -93,7 +93,7 @@ npm run watch      # rebuild on change (symlinked into spec tree, picked up live
 
 ```bash
 npx tsp compile sample/main.tsp --config sample/tspconfig.yaml
-# raw occurrences → sample/tsp-output/revapi-ignore-emitter/extensions.json
+# raw occurrences → sample/tsp-output/typespec-extension-exporter/extensions.json
 ```
 
 ## Run against the Foundry spec
@@ -120,16 +120,16 @@ npm run foundry:setup "$FOUNDRY_DIR"
 
 This [script](../../../foundry/setup-foundry-deps.sh) builds the emitter, writes
 a temporary `package.json` into `$FOUNDRY_DIR` listing the required TypeSpec
-libs plus `"revapi-ignore-emitter": "file:<this repo>"` (npm installs it as a
+libs plus `"typespec-extension-exporter": "file:<this repo>"` (npm installs it as a
 **symlink**), runs `npm install`, then removes the temp manifest and lockfile so
 the spec repo's git status stays clean. The gitignored `node_modules` remains
-and is enough for resolution. After this, `--emit revapi-ignore-emitter` works
+and is enough for resolution. After this, `--emit typespec-extension-exporter` works
 by name.
 
 ### 3. Emit
 
 ```bash
-npm run foundry:emit:agents     # → foundry/tsp-output/revapi-ignore-emitter/agents.revapi.json
+npm run foundry:emit:agents     # → foundry/tsp-output/typespec-extension-exporter/agents.revapi.json
 npm run foundry:emit:projects   # → .../projects.revapi.json
 npm run foundry:emit            # both
 ```
@@ -141,7 +141,7 @@ all decorators/namespaces resolve, and pin `java-namespace`.
 ### 4. Verify
 
 ```bash
-node -e "const a=require('./foundry/tsp-output/revapi-ignore-emitter/agents.revapi.json'),p=require('./foundry/tsp-output/revapi-ignore-emitter/projects.revapi.json');console.log('agents='+a.length,'projects='+p.length);"
+node -e "const a=require('./foundry/tsp-output/typespec-extension-exporter/agents.revapi.json'),p=require('./foundry/tsp-output/typespec-extension-exporter/projects.revapi.json');console.log('agents='+a.length,'projects='+p.length);"
 # expected order of magnitude: agents≈74, projects≈26
 
 # spec repo must stay clean:

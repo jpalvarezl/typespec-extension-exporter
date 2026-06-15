@@ -1,4 +1,4 @@
-# revapi-ignore-emitter
+# typespec-extension-exporter
 
 A TypeSpec emitter that turns `@extension`-marked beta entities into a
 [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html)
@@ -18,7 +18,7 @@ can be serialized as JSON, YAML, or CSV.
 ## Installation
 
 ```bash
-npm install revapi-ignore-emitter
+npm install typespec-extension-exporter
 ```
 
 The emitter has `@typespec/compiler`, `@typespec/openapi`, and
@@ -32,17 +32,17 @@ is still a required peer dependency because the emitter imports it directly.
 Run it as part of `tsp compile`:
 
 ```bash
-tsp compile <path> --emit revapi-ignore-emitter
+tsp compile <path> --emit typespec-extension-exporter
 ```
 
 By default, this writes `extensions.json` into the emitter output directory
-(`tsp-output/revapi-ignore-emitter/`).
+(`tsp-output/typespec-extension-exporter/`).
 
 You can also enable it from `tspconfig.yaml`:
 
 ```yaml
 emit:
-  - revapi-ignore-emitter
+  - typespec-extension-exporter
 ```
 
 ### Output shape
@@ -64,8 +64,8 @@ emit:
 
 ## Options
 
-Pass options via `--option revapi-ignore-emitter.<name>=<value>` (or under
-`options.revapi-ignore-emitter` in `tspconfig.yaml`).
+Pass options via `--option typespec-extension-exporter.<name>=<value>` (or under
+`options.typespec-extension-exporter` in `tspconfig.yaml`).
 
 | Option        | Type   | Description                                                                                                                                            |
 | ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -88,15 +88,15 @@ Examples:
 
 ```yaml
 options:
-  revapi-ignore-emitter:
+  typespec-extension-exporter:
     output-shape: tsp-ast-input
     output-format: yaml
 ```
 
 ```bash
-tsp compile <path> --emit revapi-ignore-emitter \
-  --option revapi-ignore-emitter.output-shape=revapi \
-  --option revapi-ignore-emitter.output-format=csv
+tsp compile <path> --emit typespec-extension-exporter \
+  --option typespec-extension-exporter.output-shape=revapi \
+  --option typespec-extension-exporter.output-format=csv
 ```
 
 In Java output modes (`revapi` and `tsp-ast-input`) the emitter builds the
@@ -145,7 +145,7 @@ the generated Java member name from TCGC:
 ### Example: only models and fields
 
 ```bash
-tsp compile <path> --emit revapi-ignore-emitter --option "revapi-ignore-emitter.kinds=model,field"
+tsp compile <path> --emit typespec-extension-exporter --option "typespec-extension-exporter.kinds=model,field"
 ```
 
 ## Development
@@ -192,8 +192,8 @@ There is one config per Java SDK project, each producing its own revapi file:
 
 | Project | Config | Output |
 | --- | --- | --- |
-| `sdk-java-azure-ai-agents` | `foundry/agents.tspconfig.yaml` | `foundry/tsp-output/revapi-ignore-emitter/agents.revapi.json` |
-| `sdk-java-azure-ai-projects` | `foundry/projects.tspconfig.yaml` | `foundry/tsp-output/revapi-ignore-emitter/projects.revapi.json` |
+| `sdk-java-azure-ai-agents` | `foundry/agents.tspconfig.yaml` | `foundry/tsp-output/typespec-extension-exporter/agents.revapi.json` |
+| `sdk-java-azure-ai-projects` | `foundry/projects.tspconfig.yaml` | `foundry/tsp-output/typespec-extension-exporter/projects.revapi.json` |
 
 Each config mirrors its spec project's `imports` so all decorators and
 namespaces resolve. The Java type names, packages and public/internal placement
@@ -211,9 +211,9 @@ published/installed normally), it can be referenced by name from the spec's own
 
 ```yaml
 emit:
-  - revapi-ignore-emitter
+  - typespec-extension-exporter
 options:
-  revapi-ignore-emitter:
+  typespec-extension-exporter:
     keys: x-ms-foundry-meta
     output-shape: revapi
     output-format: json

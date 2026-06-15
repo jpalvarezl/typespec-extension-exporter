@@ -12,7 +12,7 @@
 output-dir: "{cwd}/foundry/tsp-output"
 
 emit:
-  - revapi-ignore-emitter
+  - typespec-extension-exporter
 
 imports:
   - "@azure-tools/typespec-azure-core"
@@ -23,7 +23,7 @@ imports:
   - "@azure-tools/openai-typespec/models/responses"
 
 options:
-  revapi-ignore-emitter:
+  typespec-extension-exporter:
     keys: x-ms-foundry-meta
     # Default Foundry flow generates revapi suppressions as JSON.
     # To generate AST customization annotation input instead, use:
@@ -34,8 +34,8 @@ options:
     #   output-format: yaml # or json/csv
     #   output-file: projects.revapi.yaml
     # Or override from the CLI:
-    #   --option revapi-ignore-emitter.output-shape=tsp-ast-input
-    #   --option revapi-ignore-emitter.output-file=projects.tsp-ast-input.json
+    #   --option typespec-extension-exporter.output-shape=tsp-ast-input
+    #   --option typespec-extension-exporter.output-file=projects.tsp-ast-input.json
     output-shape: revapi
     output-format: json
     output-file: projects.revapi.json

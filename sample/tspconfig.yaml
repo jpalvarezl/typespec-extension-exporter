@@ -1,2 +1,2 @@
 emit:
-  - revapi-ignore-emitter
+  - typespec-extension-exporter

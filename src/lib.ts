@@ -1,6 +1,6 @@
 import { createTypeSpecLibrary, JSONSchemaType } from "@typespec/compiler";
 
-/** Options accepted by the emitter (passed via `--option revapi-ignore-emitter.<name>=<value>`). */
+/** Options accepted by the emitter (passed via `--option typespec-extension-exporter.<name>=<value>`). */
 export interface ExtensionEmitterOptions {
   /**
    * Restrict the output to occurrences whose extension key matches one of these
@@ -71,7 +71,7 @@ const EmitterOptionsSchema: JSONSchemaType<ExtensionEmitterOptions> = {
 };
 
 export const $lib = createTypeSpecLibrary({
-  name: "revapi-ignore-emitter",
+  name: "typespec-extension-exporter",
   diagnostics: {},
   emitter: {
     options: EmitterOptionsSchema,
