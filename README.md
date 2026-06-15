@@ -21,10 +21,11 @@ can be serialized as JSON, YAML, or CSV.
 npm install revapi-ignore-emitter
 ```
 
-The emitter has `@typespec/compiler` and `@typespec/openapi` as peer
-dependencies (plus `@azure-tools/typespec-client-generator-core` for Java
-entity output modes like `revapi` and `tsp-ast-input`), so they must be present
-in your TypeSpec project.
+The emitter has `@typespec/compiler`, `@typespec/openapi`, and
+`@azure-tools/typespec-client-generator-core` as peer dependencies, so they must
+be present in your TypeSpec project. TCGC is only used when the selected
+`output-shape` needs Java SDK entity names (`revapi` or `tsp-ast-input`), but it
+is still a required peer dependency because the emitter imports it directly.
 
 ## Usage
 

@@ -388,10 +388,7 @@ function collectPreviews(target: Set<string>, value: unknown): void {
 
 /** Build the default annotation/justification text. */
 function getBaseAnnotationDescription(options: ExtensionEmitterOptions): string {
-  return (
-    options.justification ??
-    "Preview API."
-  );
+  return options.justification ?? "Preview API.";
 }
 
 /** Resolve the Java naming options shared by revapi and tsp-ast-input modes. */
@@ -414,7 +411,10 @@ function getJavaTypeFqn(
     entity.access === "internal"
       ? options.internalSubpackage
       : options.modelsSubpackage;
-  return `${base}.${subpackage}.${entity.name}`;
+  return [base, subpackage, entity.name]
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join(".");
 }
 
 /** Build the annotation/justification text, appending the gating preview feature keys. */
