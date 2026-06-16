@@ -154,6 +154,8 @@ tsp compile <path> --emit typespec-extension-exporter --option "typespec-extensi
 npm install
 npm run build        # compile TypeScript to dist/
 npm run watch        # rebuild on change
+npm test             # build, then run the vitest suite
+npm run test:watch   # re-run tests on change
 ```
 
 A sample spec lives in [`sample/`](./sample). To try the emitter against it
