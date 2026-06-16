@@ -45,44 +45,39 @@ emit:
   - typespec-extension-exporter
 ```
 
-### Output shape
-
-```json
-[
-  {
-    "key": "x-model-tag",
-    "value": "widget",
-    "targetKind": "Model",
-    "targetName": "Sample.Widget",
-    "namespace": "Sample",
-    "file": "/abs/path/to/main.tsp",
-    "line": 8,
-    "column": 1
-  }
-]
-```
+The default `raw` output is a JSON array of `@extension` occurrences. See
+[Output shapes and formats](docs/advanced.md) for every shape and format.
 
 ## Options
 
 Pass options via `--option typespec-extension-exporter.<name>=<value>` (or under
 `options.typespec-extension-exporter` in `tspconfig.yaml`).
 
-| Option        | Type   | Description                                                                                                                                            |
-| ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `keys`        | string | Comma-separated, case-sensitive extension keys to include (e.g. `x-ms-foundry-meta`). Omit to include any key. |
-| `kinds`       | string | Comma-separated, case-insensitive target kinds to include (e.g. `model,modelProperty,operation,enum,union,scalar`). The alias `field` maps to `modelProperty`. Omit to include all kinds. |
-| `output-shape` | string | Semantic output shape: `raw` (default) emits raw occurrences; `revapi` emits a [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html) ignore list; `tsp-ast-input` emits annotation-insertion requests for downstream AST customization. |
-| `output-format` | string | Serialization format: `json` (default), `yaml`, or `csv`. CSV output uses `;` as the delimiter. |
-| `output-file` | string | Name of the output file to write. Defaults to `extensions.<format>` for raw, `revapi.<format>` for revapi, or `tsp-ast-input.<format>` for tsp-ast-input. |
+| Option          | Type   | Description                                                                                                                                                                                                                                                                |
+| --------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keys`          | string | Comma-separated, case-sensitive extension keys to include (e.g. `x-ms-foundry-meta`). Omit to include any key.                                                                                                                                                             |
+| `kinds`         | string | Comma-separated, case-insensitive target kinds to include (e.g. `model,modelProperty,operation,enum,union,scalar`). The alias `field` maps to `modelProperty`. Omit to include all kinds.                                                                                  |
+| `output-shape`  | string | Semantic output shape: `raw` (default) emits raw occurrences; `revapi` emits a [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html) ignore list; `tsp-ast-input` emits annotation-insertion requests for downstream AST customization. |
+| `output-format` | string | Serialization format: `json` (default), `yaml`, or `csv`. CSV output uses `;` as the delimiter.                                                                                                                                                                            |
+| `output-file`   | string | Name of the output file to write. Defaults to `extensions.<format>` for raw, `revapi.<format>` for revapi, or `tsp-ast-input.<format>` for tsp-ast-input.                                                                                                                  |
 
 #### Java-output options (used when `output-shape` is `revapi` or `tsp-ast-input`)
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `java-namespace` | string | Override for the Java base package, e.g. `com.azure.ai.agents`. When omitted, the client namespace resolved by TCGC (`@@clientNamespace(..., "java")`) is used. Set this when the Java package comes from the `typespec-java` emitter's `namespace` option instead of `@@clientNamespace`. |
-| `models-subpackage` | string | Subpackage for public models/enums. Defaults to `models`. |
-| `internal-subpackage` | string | Subpackage for non-public (internal-access) types. Defaults to `implementation.models`. |
-| `justification` | string | Base annotation/justification text attached to every generated Java output entry. The gating preview feature keys (from the `@extension` value's `required_previews`/`conditional_previews`) are appended automatically. |
+| Option                | Type   | Description                                                                                                                                                                                                                                                                                |
+| --------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `java-namespace`      | string | Override for the Java base package, e.g. `com.azure.ai.agents`. When omitted, the client namespace resolved by TCGC (`@@clientNamespace(..., "java")`) is used. Set this when the Java package comes from the `typespec-java` emitter's `namespace` option instead of `@@clientNamespace`. |
+| `models-subpackage`   | string | Subpackage for public models/enums. Defaults to `models`.                                                                                                                                                                                                                                  |
+| `internal-subpackage` | string | Subpackage for non-public (internal-access) types. Defaults to `implementation.models`.                                                                                                                                                                                                    |
+| `justification`       | string | Base annotation/justification text attached to every generated Java output entry. The gating preview feature keys (from the `@extension` value's `required_previews`/`conditional_previews`) are appended automatically.                                                                   |
+
+#### Option validation
+
+The emitter reports a compiler warning (without failing the build) for option
+values that can never match:
+
+- `unknown-kind`: a `kinds` value that is not a recognized TypeSpec kind.
+- `non-extension-key`: a `keys` value that does not start with `x-` (OpenAPI
+  `@extension` keys always do).
 
 Examples:
 
@@ -99,124 +94,121 @@ tsp compile <path> --emit typespec-extension-exporter \
   --option typespec-extension-exporter.output-format=csv
 ```
 
-In Java output modes (`revapi` and `tsp-ast-input`) the emitter builds the
-TypeSpec Client Generator Core (TCGC) SDK model the same way the `typespec-java`
-emitter does, so each beta entity is named exactly as it appears in the
-generated Java SDK: `@clientName` renames are applied, and the public/internal
-`access` decides the `models` vs `implementation.models` subpackage. Anonymous
-models (e.g. request bodies) have no distinct public Java type and are skipped —
-their beta members are covered by the named models they originate from.
-
-Each beta entity becomes an ignore entry whose `code` is the regex `java\..*`
-(so any breaking change on the matched element is ignored) and whose `old` is a
-strict regex matching the entity's Java fully-qualified name — anchored with a
-word boundary and a trailing negative look-ahead so it never matches a longer
-name that merely shares the same prefix:
-
-```json
-{
-  "ignore": true,
-  "regex": true,
-  "code": "java\\..*",
-  "old": ".*\\bcom\\.azure\\.ai\\.agents\\.models\\.AgentDefinition(?![\\w$]).*",
-  "justification": "Preview API. HostedAgents=V1Preview"
-}
-```
-
-Type-level entities (models, enums, unions) match their own class/enum name.
-Beta properties on a non-beta model match that model's accessors
-(`...Model::(get|set|is|with)?PropertyName`); properties on a model that is
-itself beta are omitted as redundant.
-
-In `tsp-ast-input` mode, each beta entity becomes an annotation request for a
-later AST customization step. Type-level entities become `class` entries, and
-beta properties on non-beta models become `field` entries whose `member_name` is
-the generated Java member name from TCGC:
-
-```json
-{
-  "type": "field",
-  "class_name": "com.azure.ai.projects.models.CodeBasedEvaluatorDefinition",
-  "annotation_description": "Preview API. Evaluators=V1Preview",
-  "member_name": "blobUrl"
-}
-```
-
-### Example: only models and fields
-
-```bash
-tsp compile <path> --emit typespec-extension-exporter --option "typespec-extension-exporter.kinds=model,field"
-```
-
-## Development
-
-```bash
-npm install
-npm run build        # compile TypeScript to dist/
-npm run watch        # rebuild on change
-```
-
-A sample spec lives in [`sample/`](./sample). To try the emitter against it
-from this repo:
-
-```bash
-tsp compile sample/main.tsp --emit "$PWD" --output-dir sample/tsp-output
-```
+For details on each output shape (including the `revapi` regex anchoring and the
+`tsp-ast-input` entry format), the Java naming rules, and the serialization
+formats, see [Output shapes and formats](docs/advanced.md).
 
 ## Running against the Foundry spec
 
-The Foundry spec lives in a separate repo that has no `node_modules`. TypeSpec
-resolves libraries (and emitters) from the spec's own directory tree, so the
-required libraries and this emitter must be made resolvable there first.
+The Foundry spec lives in the [`azure-rest-api-specs`](https://github.com/Azure/azure-rest-api-specs)
+repo. Its two Java SDK projects carry this emitter's options in their own
+`tspconfig.yaml`:
 
-`foundry/setup-foundry-deps.sh` does this in one shot: it installs the TypeSpec
-libraries the spec imports and symlinks this emitter into the spec tree (as a
-`file:` dependency). Because it's a symlink, rebuilding the emitter is picked up
-immediately — ideal for iteration.
+| Project                      | `tspconfig.yaml`                                            |
+| ---------------------------- | ----------------------------------------------------------- |
+| `sdk-java-azure-ai-agents`   | `.../Foundry/src/sdk-java-azure-ai-agents/tspconfig.yaml`   |
+| `sdk-java-azure-ai-projects` | `.../Foundry/src/sdk-java-azure-ai-projects/tspconfig.yaml` |
+
+Each has an `options.typespec-extension-exporter` block (default output: the
+`tsp-ast-input` CSV the Java SDK consumes as
+`<library-module>/customizations/beta-annotations.csv`). That block is **inert**
+during a normal `tsp compile` — it only takes effect when the emitter is
+explicitly selected with `--emit typespec-extension-exporter`, so it never
+disrupts other contributors.
+
+### One-time onboarding: make the emitter resolvable
+
+TypeSpec resolves emitters from the spec's own directory tree (it does **not**
+consult global installs), so the emitter must be present in a `node_modules`
+above the spec files. Pick whichever you prefer:
 
 ```bash
-# One-time setup (point at the Foundry directory):
+# Option A — npm link (no publish; picks up local rebuilds):
+npm install -g typespec-extension-exporter   # or: npm link  (from this repo)
+cd /path/to/azure-rest-api-specs
+npm link typespec-extension-exporter
+
+# Option B — install into the spec repo without touching its package.json:
+cd /path/to/azure-rest-api-specs
+npm install --no-save typespec-extension-exporter
+```
+
+Both may emit a harmless "multiple versions of @typespec/\*" warning if your
+emitter install resolves newer TypeSpec libraries than the spec repo's; the
+output is unaffected.
+
+### Emit
+
+With the emitter onboarded, compile a project's `client.tsp` with `--emit`; the
+options come from that project's committed `tspconfig.yaml`:
+
+```bash
+tsp compile .../Foundry/src/sdk-java-azure-ai-agents/client.tsp \
+  --emit typespec-extension-exporter --output-dir <out>
+```
+
+For local development against a checkout of the spec, this repo ships a
+cross-platform helper that builds the emitter, makes it resolvable in the spec
+tree, and emits each project. By default it writes under
+`foundry/tsp-output/<project>/`, but `--<project>-out <dir>` writes
+`beta-annotations.csv` **straight into a Java SDK module's `customizations/`
+folder** (where the `@Beta` customization reads it):
+
+```bash
 export FOUNDRY_DIR=/path/to/azure-rest-api-specs/specification/ai-foundry/data-plane/Foundry
-npm run foundry:setup "$FOUNDRY_DIR"
 
-# Iterate: rebuild on change in one terminal ...
-npm run watch
+# Generate into this repo's output dir:
+npm run foundry:emit            # both projects
+npm run foundry:emit:agents     # one project
 
-# ... and emit in another. Per project, or both at once:
-npm run foundry:emit:agents
-npm run foundry:emit:projects
-npm run foundry:emit          # both
+# Generate straight into the Java SDK module (one command, ready to commit):
+node foundry/emit.mjs agents \
+  --agents-out /path/to/azure-sdk-for-java/sdk/ai/azure-ai-agents/customizations
+node foundry/emit.mjs projects \
+  --projects-out /path/to/azure-sdk-for-java/sdk/ai/azure-ai-projects/customizations
 ```
 
-There is one config per Java SDK project, each producing its own revapi file:
+(`FOUNDRY_DIR` can also be passed as `--foundry-dir <path>`; it must contain
+`src/sdk-java-azure-ai-<project>/client.tsp`. The helper writes the file
+directly — no `typespec-extension-exporter/` subfolder — via the built-in
+`emitter-output-dir` option.)
 
-| Project | Config | Output |
-| --- | --- | --- |
-| `sdk-java-azure-ai-agents` | `foundry/agents.tspconfig.yaml` | `foundry/tsp-output/typespec-extension-exporter/agents.revapi.json` |
-| `sdk-java-azure-ai-projects` | `foundry/projects.tspconfig.yaml` | `foundry/tsp-output/typespec-extension-exporter/projects.revapi.json` |
+### Using `tsp-client` from the Java SDK repo
 
-Each config mirrors its spec project's `imports` so all decorators and
-namespaces resolve. The Java type names, packages and public/internal placement
-are taken from TCGC — the same client model the `typespec-java` emitter is built
-on — so renames and access levels line up automatically; the only per-project
-knob is `java-namespace`, pinned to the `typespec-java` emitter's `namespace`
-option. The output is a revapi ignore list of every beta (`x-ms-foundry-meta`)
-entity, ready to paste into the Java SDK's `revapi.json`.
+The committed options flow through the Java SDK repo's `tsp-location.yaml`
+process. Each project's `tspconfig.yaml` already sets `emitter-output-dir` to
+`{output-dir}/{service-dir}/azure-ai-<project>/customizations` — the same
+`{output-dir}/{service-dir}/...` interpolation the Java emitter uses — so the
+CSV lands in the library module's `customizations/` folder automatically when
+`{output-dir}` is the `azure-sdk-for-java` repo root (which is what `tsp-client`
+uses).
 
-### Toward a `tspconfig.yaml` entry
+From the library module (e.g. `sdk/ai/azure-ai-agents`), the repo root is
+`../../..`, so a manual run is:
 
-Once the emitter is resolvable in the spec tree (via the setup above, or when
-published/installed normally), it can be referenced by name from the spec's own
-`tspconfig.yaml` instead of the `--emit` flag:
+```bash
+npx tsp-client sync                       # materializes TempTypeSpecFiles/
+npx tsp-client install-dependencies       # TypeSpec libs the compile needs
+npm link typespec-extension-exporter      # onboarding (or: npm install --no-save, once published)
 
-```yaml
-emit:
-  - typespec-extension-exporter
-options:
-  typespec-extension-exporter:
-    keys: x-ms-foundry-meta
-    output-shape: revapi
-    output-format: json
-    java-namespace: com.azure.ai.agents
+npx tsp compile <synced client.tsp> \
+  --emit typespec-extension-exporter \
+  --output-dir ../../..                    # -> customizations/beta-annotations.csv
+
+npx tsp-client generate                   # Java codegen; @Beta customization reads the CSV
 ```
 
+The `@Beta` customization **requires** `customizations/beta-annotations.csv` to
+exist, so the `tsp compile` step must run before `tsp-client generate`. No
+emitter option needs to be passed — the output location comes from the committed
+`emitter-output-dir`. For everyday local iteration the
+[`foundry/emit.mjs`](foundry/emit.mjs) helper does the build/link/emit in one
+command and is the lowest-friction path.
+
+## Documentation
+
+- [Output shapes and formats](docs/advanced.md) — the `raw`, `revapi`, and
+  `tsp-ast-input` shapes in depth, Java naming rules, and the JSON/YAML/CSV
+  formats.
+- [Contributing](docs/contribute.md) — local setup, scripts, project structure,
+  testing, and how `foundry/emit.mjs` works.

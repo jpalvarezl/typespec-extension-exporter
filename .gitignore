@@ -4,3 +4,5 @@ dist/
 
 # Emitter output
 **/tsp-output/
+
+**/.pi
