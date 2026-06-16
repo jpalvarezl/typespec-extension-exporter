@@ -66,4 +66,6 @@ export interface CollectedBeta {
 }
 
 export type OutputShape = NonNullable<ExtensionEmitterOptions["output-shape"]>;
-export type OutputFormat = NonNullable<ExtensionEmitterOptions["output-format"]>;
+export type OutputFormat = NonNullable<
+  ExtensionEmitterOptions["output-format"]
+>;

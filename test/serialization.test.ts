@@ -19,7 +19,9 @@ describe("serialization formats", () => {
 
     expect(Object.keys(outputs)).toEqual(["extensions.json"]);
     const parsed = JSON.parse(outputs["extensions.json"]);
-    expect(parsed).toMatchObject([{ key: "x-a", value: "v", targetKind: "Model" }]);
+    expect(parsed).toMatchObject([
+      { key: "x-a", value: "v", targetKind: "Model" },
+    ]);
   });
 
   it("emits YAML to extensions.yaml when output-format is yaml", async () => {
@@ -29,7 +31,9 @@ describe("serialization formats", () => {
 
     expect(Object.keys(outputs)).toEqual(["extensions.yaml"]);
     const parsed = parseYaml(outputs["extensions.yaml"]);
-    expect(parsed).toMatchObject([{ key: "x-a", value: "v", targetKind: "Model" }]);
+    expect(parsed).toMatchObject([
+      { key: "x-a", value: "v", targetKind: "Model" },
+    ]);
   });
 
   it("emits semicolon-delimited CSV to extensions.csv when output-format is csv", async () => {

@@ -1,9 +1,15 @@
-import { resolvePath } from "@typespec/compiler";
+import { NoTarget, resolvePath } from "@typespec/compiler";
 import type { EmitContext } from "@typespec/compiler";
 import type { ExtensionEmitterOptions } from "./lib.js";
+import { reportDiagnostic } from "./lib.js";
 import { collectBetaFromTcgc } from "./collect-beta.js";
 import { collectRawOccurrences } from "./collect-raw.js";
-import { parseKeyFilter, parseKindFilter } from "./options.js";
+import {
+  findNonExtensionKeys,
+  findUnknownKinds,
+  parseKeyFilter,
+  parseKindFilter,
+} from "./options.js";
 import { getDefaultOutputFile, serializePayload } from "./serialize.js";
 import { toRevapiEntries, toTspAstInputEntries } from "./transform.js";
 
@@ -19,6 +25,21 @@ export async function $onEmit(
 ): Promise<void> {
   const { program } = context;
   const options = context.options;
+
+  for (const kind of findUnknownKinds(options.kinds)) {
+    reportDiagnostic(program, {
+      code: "unknown-kind",
+      format: { kind },
+      target: NoTarget,
+    });
+  }
+  for (const key of findNonExtensionKeys(options.keys)) {
+    reportDiagnostic(program, {
+      code: "non-extension-key",
+      format: { key },
+      target: NoTarget,
+    });
+  }
 
   const kindFilter = parseKindFilter(options.kinds);
   const keyFilter = parseKeyFilter(options.keys);
@@ -41,7 +62,8 @@ export async function $onEmit(
     return;
   }
 
-  const fileName = options["output-file"] ?? getDefaultOutputFile(shape, format);
+  const fileName =
+    options["output-file"] ?? getDefaultOutputFile(shape, format);
 
   const outputFile = resolvePath(context.emitterOutputDir, fileName);
   await program.host.mkdirp(context.emitterOutputDir);

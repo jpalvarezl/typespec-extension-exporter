@@ -47,7 +47,10 @@ const SAMPLE = `
   op get(): { agent: AgentDefinition; tool: Tool };
 `;
 
-const JAVA_OPTIONS = { keys: "x-ms-foundry-meta", "java-namespace": "com.azure.ai.agents" };
+const JAVA_OPTIONS = {
+  keys: "x-ms-foundry-meta",
+  "java-namespace": "com.azure.ai.agents",
+};
 
 describe("revapi output shape", () => {
   it("maps beta entities to revapi ignore entries named by their Java FQN", async () => {
@@ -58,7 +61,9 @@ describe("revapi output shape", () => {
 
     const byOld = (needle: string) => {
       const match = entries.filter((e) => e.old.includes(needle));
-      expect(match, `expected one entry containing "${needle}"`).toHaveLength(1);
+      expect(match, `expected one entry containing "${needle}"`).toHaveLength(
+        1,
+      );
       return match[0];
     };
 
@@ -99,9 +104,9 @@ describe("revapi output shape", () => {
       justification: "Beta feature.",
     });
 
-    expect(entries.every((e) => e.justification.startsWith("Beta feature."))).toBe(
-      true,
-    );
+    expect(
+      entries.every((e) => e.justification.startsWith("Beta feature.")),
+    ).toBe(true);
   });
 
   it("defaults the file name to revapi.json", async () => {
@@ -219,4 +224,3 @@ describe("real-world Foundry patterns (tsp-ast-input)", () => {
     });
   });
 });
-

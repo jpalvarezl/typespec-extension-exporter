@@ -1,6 +1,6 @@
 ---
 name: typespec-extension-exporter
-description: 'Build, configure, and run the typespec-extension-exporter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; generating tsp-ast-input annotation customization data; dumping raw @extension occurrences; serializing output as JSON/YAML/CSV; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-shape, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR setup flow.'
+description: "Build, configure, and run the typespec-extension-exporter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; generating tsp-ast-input annotation customization data; dumping raw @extension occurrences; serializing output as JSON/YAML/CSV; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-shape, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR setup flow."
 ---
 
 # typespec-extension-exporter
@@ -27,15 +27,15 @@ customization input.
 
 ## Project layout
 
-| Path | Purpose |
-|------|---------|
-| [src/index.ts](../../../src/index.ts) | `$onEmit` entry; raw + Java beta entity collection and output transforms |
-| [src/lib.ts](../../../src/lib.ts) | `$lib` definition + options schema (`ExtensionEmitterOptions`) |
-| [foundry/setup-foundry-deps.sh](../../../foundry/setup-foundry-deps.sh) | Installs spec libs + symlinks the emitter into the spec tree |
-| [foundry/agents.tspconfig.yaml](../../../foundry/agents.tspconfig.yaml) | Config for `sdk-java-azure-ai-agents` |
-| [foundry/projects.tspconfig.yaml](../../../foundry/projects.tspconfig.yaml) | Config for `sdk-java-azure-ai-projects` |
-| `foundry/tsp-output/typespec-extension-exporter/` | Generated Foundry outputs (`*.revapi.*`, `*.tsp-ast-input.*`) |
-| [sample/](../../../sample/) | Minimal standalone test spec |
+| Path                                                                        | Purpose                                                                  |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [src/index.ts](../../../src/index.ts)                                       | `$onEmit` entry; raw + Java beta entity collection and output transforms |
+| [src/lib.ts](../../../src/lib.ts)                                           | `$lib` definition + options schema (`ExtensionEmitterOptions`)           |
+| [foundry/setup-foundry-deps.sh](../../../foundry/setup-foundry-deps.sh)     | Installs spec libs + symlinks the emitter into the spec tree             |
+| [foundry/agents.tspconfig.yaml](../../../foundry/agents.tspconfig.yaml)     | Config for `sdk-java-azure-ai-agents`                                    |
+| [foundry/projects.tspconfig.yaml](../../../foundry/projects.tspconfig.yaml) | Config for `sdk-java-azure-ai-projects`                                  |
+| `foundry/tsp-output/typespec-extension-exporter/`                           | Generated Foundry outputs (`*.revapi.*`, `*.tsp-ast-input.*`)            |
+| [sample/](../../../sample/)                                                 | Minimal standalone test spec                                             |
 
 The emitter is registered under the name **`typespec-extension-exporter`** (matches
 `package.json` `name` and `$lib.name`). The output directory is derived from
@@ -49,17 +49,17 @@ Pass via `--option typespec-extension-exporter.<name>=<value>` or under
 keys fail validation). Array-style values are NOT supported — use
 comma-separated strings.
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `keys` | string (CSV, case-sensitive) | all keys | Only include occurrences whose `@extension` key is in this list, e.g. `x-ms-foundry-meta`. |
-| `kinds` | string (CSV, case-insensitive) | all kinds | Only include these TypeSpec target kinds: `model,modelProperty,operation,enum,union,scalar,...`. Alias `field` → `modelProperty`. **Raw mode only** (Java output modes walk the TCGC model, not kinds). |
-| `output-shape` | `raw` \| `revapi` \| `tsp-ast-input` | `raw` | Semantic output shape (see modes above). |
-| `output-format` | `json` \| `yaml` \| `csv` | `json` | Serialization format. CSV output uses `;` as the delimiter. |
-| `output-file` | string | `extensions.<format>` (raw) / `revapi.<format>` (revapi) / `tsp-ast-input.<format>` (tsp-ast-input) | File name written into the emitter output dir. |
-| `java-namespace` | string | TCGC client namespace | Java output modes only. Override the Java base package, e.g. `com.azure.ai.agents`. **Set this when the package comes from the `typespec-java` emitter's `namespace` option rather than `@@clientNamespace(..., "java")`** — projects has no `@@clientNamespace`, so it needs the override. |
-| `models-subpackage` | string | `models` | Java output modes only. Subpackage for public types. |
-| `internal-subpackage` | string | `implementation.models` | Java output modes only. Subpackage for non-public (internal `access`) types. |
-| `justification` | string | `Preview API.` | Java output modes only. Base annotation/justification on each entry. Gating preview keys parsed from the `@extension` value's `required_previews`/`conditional_previews` arrays are appended automatically (e.g. `Preview API. CodeAgents=V1Preview`). |
+| Option                | Type                                 | Default                                                                                             | Description                                                                                                                                                                                                                                                                                 |
+| --------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keys`                | string (CSV, case-sensitive)         | all keys                                                                                            | Only include occurrences whose `@extension` key is in this list, e.g. `x-ms-foundry-meta`.                                                                                                                                                                                                  |
+| `kinds`               | string (CSV, case-insensitive)       | all kinds                                                                                           | Only include these TypeSpec target kinds: `model,modelProperty,operation,enum,union,scalar,...`. Alias `field` → `modelProperty`. **Raw mode only** (Java output modes walk the TCGC model, not kinds).                                                                                     |
+| `output-shape`        | `raw` \| `revapi` \| `tsp-ast-input` | `raw`                                                                                               | Semantic output shape (see modes above).                                                                                                                                                                                                                                                    |
+| `output-format`       | `json` \| `yaml` \| `csv`            | `json`                                                                                              | Serialization format. CSV output uses `;` as the delimiter.                                                                                                                                                                                                                                 |
+| `output-file`         | string                               | `extensions.<format>` (raw) / `revapi.<format>` (revapi) / `tsp-ast-input.<format>` (tsp-ast-input) | File name written into the emitter output dir.                                                                                                                                                                                                                                              |
+| `java-namespace`      | string                               | TCGC client namespace                                                                               | Java output modes only. Override the Java base package, e.g. `com.azure.ai.agents`. **Set this when the package comes from the `typespec-java` emitter's `namespace` option rather than `@@clientNamespace(..., "java")`** — projects has no `@@clientNamespace`, so it needs the override. |
+| `models-subpackage`   | string                               | `models`                                                                                            | Java output modes only. Subpackage for public types.                                                                                                                                                                                                                                        |
+| `internal-subpackage` | string                               | `implementation.models`                                                                             | Java output modes only. Subpackage for non-public (internal `access`) types.                                                                                                                                                                                                                |
+| `justification`       | string                               | `Preview API.`                                                                                      | Java output modes only. Base annotation/justification on each entry. Gating preview keys parsed from the `@extension` value's `required_previews`/`conditional_previews` arrays are appended automatically (e.g. `Preview API. CodeAgents=V1Preview`).                                      |
 
 ### revapi `old` regex shape
 

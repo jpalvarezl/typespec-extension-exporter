@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  findNonExtensionKeys,
+  findUnknownKinds,
   normalizeKind,
   parseKeyFilter,
   parseKindFilter,
@@ -13,9 +15,7 @@ describe("parseKindFilter", () => {
   });
 
   it("lowercases, trims, and splits on commas", () => {
-    expect(parseKindFilter("Model, ENUM ")).toEqual(
-      new Set(["model", "enum"]),
-    );
+    expect(parseKindFilter("Model, ENUM ")).toEqual(new Set(["model", "enum"]));
   });
 
   it("maps the `field` alias to modelproperty", () => {
@@ -42,5 +42,34 @@ describe("parseKeyFilter", () => {
 
   it("preserves case and trims surrounding whitespace", () => {
     expect(parseKeyFilter(" x-A , x-B ")).toEqual(new Set(["x-A", "x-B"]));
+  });
+});
+
+describe("findUnknownKinds", () => {
+  it("returns nothing for unset input", () => {
+    expect(findUnknownKinds(undefined)).toEqual([]);
+    expect(findUnknownKinds("")).toEqual([]);
+  });
+
+  it("accepts all canonical kinds and the `field` alias", () => {
+    expect(
+      findUnknownKinds(
+        "model,modelProperty,field,operation,enum,enumMember,union,unionVariant,scalar,interface",
+      ),
+    ).toEqual([]);
+  });
+
+  it("returns the original spelling of each unrecognized value", () => {
+    expect(findUnknownKinds("model, Bogus , typo")).toEqual(["Bogus", "typo"]);
+  });
+});
+
+describe("findNonExtensionKeys", () => {
+  it("returns nothing for unset input", () => {
+    expect(findNonExtensionKeys(undefined)).toEqual([]);
+  });
+
+  it("flags only values that do not start with x-", () => {
+    expect(findNonExtensionKeys("x-a, ms-meta , x-b")).toEqual(["ms-meta"]);
   });
 });

@@ -6,6 +6,45 @@ export function normalizeKind(kind: string): string {
   return value === "field" ? "modelproperty" : value;
 }
 
+/** Canonical lowercase TypeSpec kinds the emitter can filter on. */
+export const VALID_KINDS: ReadonlySet<string> = new Set([
+  "model",
+  "modelproperty",
+  "operation",
+  "enum",
+  "enummember",
+  "union",
+  "unionvariant",
+  "scalar",
+  "interface",
+]);
+
+/** Split a comma-separated option into trimmed, non-empty segments. */
+function splitOption(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+/** Return the `kinds` values that aren't recognized TypeSpec kinds. */
+export function findUnknownKinds(kinds: string | undefined): string[] {
+  return splitOption(kinds).filter(
+    (kind) => !VALID_KINDS.has(normalizeKind(kind)),
+  );
+}
+
+/**
+ * Return the `keys` values that cannot match an OpenAPI `@extension` because
+ * they do not start with `x-` (OpenAPI extension keys always do).
+ */
+export function findNonExtensionKeys(keys: string | undefined): string[] {
+  return splitOption(keys).filter((key) => !key.startsWith("x-"));
+}
+
 /** Parse the comma-separated `kinds` option into a set, or undefined when unset/empty. */
 export function parseKindFilter(
   kinds: string | undefined,

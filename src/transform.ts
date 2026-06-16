@@ -4,11 +4,7 @@ import {
   getJavaNameOptions,
   type JavaNameOptions,
 } from "./options.js";
-import type {
-  CollectedBeta,
-  RevapiEntry,
-  TspAstInputEntry,
-} from "./types.js";
+import type { CollectedBeta, RevapiEntry, TspAstInputEntry } from "./types.js";
 
 /**
  * revapi difference `code` applied to every generated entry. The `java\..*`
@@ -25,7 +21,7 @@ export function escapeRegExp(text: string): string {
 /** Convert a property name (snake_case or camelCase) to PascalCase for a Java accessor. */
 export function toPascalCase(name: string): string {
   return name
-    .split(/[_\-]/)
+    .split(/[_-]/)
     .filter((part) => part.length > 0)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join("");
@@ -138,7 +134,10 @@ export function toRevapiEntries(
       regex: true as const,
       code: REVAPI_CODE,
       old: acc.entry.old,
-      justification: buildAnnotationDescription(baseJustification, acc.previews),
+      justification: buildAnnotationDescription(
+        baseJustification,
+        acc.previews,
+      ),
     }));
 }
 

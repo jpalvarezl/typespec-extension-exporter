@@ -1,4 +1,8 @@
-import { createTypeSpecLibrary, JSONSchemaType } from "@typespec/compiler";
+import {
+  createTypeSpecLibrary,
+  JSONSchemaType,
+  paramMessage,
+} from "@typespec/compiler";
 
 /** Options accepted by the emitter (passed via `--option typespec-extension-exporter.<name>=<value>`). */
 export interface ExtensionEmitterOptions {
@@ -72,7 +76,20 @@ const EmitterOptionsSchema: JSONSchemaType<ExtensionEmitterOptions> = {
 
 export const $lib = createTypeSpecLibrary({
   name: "typespec-extension-exporter",
-  diagnostics: {},
+  diagnostics: {
+    "unknown-kind": {
+      severity: "warning",
+      messages: {
+        default: paramMessage`Unknown kind '${"kind"}' in the 'kinds' option; it will never match. Valid kinds: model, modelProperty (alias 'field'), operation, enum, enumMember, union, unionVariant, scalar, interface.`,
+      },
+    },
+    "non-extension-key": {
+      severity: "warning",
+      messages: {
+        default: paramMessage`Key '${"key"}' in the 'keys' option does not start with 'x-'; OpenAPI @extension keys always do, so it will never match.`,
+      },
+    },
+  },
   emitter: {
     options: EmitterOptionsSchema,
   },

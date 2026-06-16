@@ -37,9 +37,10 @@ const SAMPLE = `
 
 function byKey(occurrences: RawOccurrence[], key: string): RawOccurrence {
   const match = occurrences.filter((o) => o.key === key);
-  expect(match, `expected exactly one occurrence for key "${key}"`).toHaveLength(
-    1,
-  );
+  expect(
+    match,
+    `expected exactly one occurrence for key "${key}"`,
+  ).toHaveLength(1);
   return match[0];
 }
 
@@ -138,7 +139,7 @@ describe("raw output shape", () => {
 
     it("is case-sensitive (no match yields an empty list)", async () => {
       const occurrences = await emitJson<RawOccurrence[]>(Tester, SAMPLE, {
-        keys: "X-MODEL-TAG",
+        keys: "x-Model-Tag",
       });
       expect(occurrences).toEqual([]);
     });
