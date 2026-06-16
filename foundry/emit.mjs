@@ -47,12 +47,23 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === "--foundry-dir") {
       foundryDir = argv[++i];
+      if (foundryDir === undefined) {
+        fail(
+          "--foundry-dir requires a path, e.g. --foundry-dir /path/to/Foundry.",
+        );
+      }
     } else if (arg in PROJECTS) {
       selected.push(arg);
     } else {
       const outMatch = /^--(\w+)-out$/.exec(arg);
       if (outMatch && outMatch[1] in PROJECTS) {
-        outDirs[outMatch[1]] = argv[++i];
+        const value = argv[++i];
+        if (value === undefined) {
+          fail(
+            `${arg} requires a directory, e.g. ${arg} /path/to/customizations.`,
+          );
+        }
+        outDirs[outMatch[1]] = value;
       } else {
         fail(
           `unknown argument '${arg}'. Expected: ${Object.keys(PROJECTS).join(", ")}, ` +
@@ -123,6 +134,16 @@ if (!specNodeModules) {
   fail(
     `Could not find a node_modules with @typespec/compiler above '${foundry}'. ` +
       "Install the spec's dependencies first.",
+  );
+}
+// The emitter imports `yaml` at runtime but we deliberately don't copy nested
+// node_modules, so it must be resolvable from the spec tree. Check up front so a
+// missing dependency fails with an actionable hint instead of a module-not-found
+// error deep inside `tsp compile`.
+if (!existsSync(join(specNodeModules, "yaml"))) {
+  fail(
+    `'yaml' is not installed in ${specNodeModules}. The emitter needs it at ` +
+      "runtime. Install it there (e.g. `npm install --no-save yaml`) and retry.",
   );
 }
 const emitterDest = join(specNodeModules, EMITTER_NAME);

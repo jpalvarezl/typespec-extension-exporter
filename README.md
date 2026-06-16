@@ -175,29 +175,35 @@ directly — no `typespec-extension-exporter/` subfolder — via the built-in
 
 ### Using `tsp-client` from the Java SDK repo
 
-The committed options also flow through the Java SDK repo's `tsp-location.yaml`
-process. After `tsp-client sync`, the materialized spec under
-`TempTypeSpecFiles/` still carries the `options.typespec-extension-exporter`
-block, so compiling that project's `client.tsp` with `--emit` writes the CSV.
-To land it in the right place, point `emitter-output-dir` at the module's
-`customizations/` folder:
+The committed options flow through the Java SDK repo's `tsp-location.yaml`
+process. Each project's `tspconfig.yaml` already sets `emitter-output-dir` to
+`{output-dir}/{service-dir}/azure-ai-<project>/customizations` — the same
+`{output-dir}/{service-dir}/...` interpolation the Java emitter uses — so the
+CSV lands in the library module's `customizations/` folder automatically when
+`{output-dir}` is the `azure-sdk-for-java` repo root (which is what `tsp-client`
+uses).
+
+From the library module (e.g. `sdk/ai/azure-ai-agents`), the repo root is
+`../../..`, so a manual run is:
 
 ```bash
-# From the library module (e.g. sdk/ai/azure-ai-agents):
 npx tsp-client sync                       # materializes TempTypeSpecFiles/
-npm install --no-save typespec-extension-exporter   # onboarding (once)
+npx tsp-client install-dependencies       # TypeSpec libs the compile needs
+npm link typespec-extension-exporter      # onboarding (or: npm install --no-save, once published)
 
-npx tsp compile TempTypeSpecFiles/<...>/sdk-java-azure-ai-agents/client.tsp \
+npx tsp compile <synced client.tsp> \
   --emit typespec-extension-exporter \
-  --option typespec-extension-exporter.emitter-output-dir=$PWD/customizations
+  --output-dir ../../..                    # -> customizations/beta-annotations.csv
+
+npx tsp-client generate                   # Java codegen; @Beta customization reads the CSV
 ```
 
-So your instinct is right — `sync`, ensure the emitter is installed, then
-`tsp compile … --emit`. The one nuance is the **output location**: pass
-`emitter-output-dir=<module>/customizations` so the file lands exactly where the
-`@Beta` customization reads it, instead of a nested emitter subfolder. The
-`emit.mjs` helper above automates this end to end against a spec checkout, which
-is the lowest-friction path during development.
+The `@Beta` customization **requires** `customizations/beta-annotations.csv` to
+exist, so the `tsp compile` step must run before `tsp-client generate`. No
+emitter option needs to be passed — the output location comes from the committed
+`emitter-output-dir`. For everyday local iteration the
+[`foundry/emit.mjs`](foundry/emit.mjs) helper does the build/link/emit in one
+command and is the lowest-friction path.
 
 ## Documentation
 

@@ -159,16 +159,28 @@ git -C /path/to/azure-rest-api-specs status --short specification/ai-foundry/dat
 
 ### From the Java SDK repo (tsp-client)
 
-The committed options survive `tsp-client sync` (the materialized spec under
-`TempTypeSpecFiles/` keeps the `options.typespec-extension-exporter` block).
-With the emitter onboarded, compile the synced `client.tsp` and point
-`emitter-output-dir` at the module's `customizations/`:
+The committed options survive `tsp-client sync` (the materialized spec keeps the
+`options.typespec-extension-exporter` block). Each project's `tspconfig.yaml`
+sets `emitter-output-dir: "{output-dir}/{service-dir}/azure-ai-<project>/customizations"`,
+so the CSV lands in the library module's `customizations/` automatically when
+`{output-dir}` is the `azure-sdk-for-java` repo root (what `tsp-client` uses).
+From the module dir that's `../../..`:
 
 ```bash
-npx tsp compile TempTypeSpecFiles/<...>/sdk-java-azure-ai-agents/client.tsp \
-  --emit typespec-extension-exporter \
-  --option typespec-extension-exporter.emitter-output-dir=$PWD/customizations
+npx tsp-client sync
+npx tsp-client install-dependencies          # TypeSpec libs the compile needs
+npm link typespec-extension-exporter         # or npm install --no-save once published
+
+npx tsp compile <synced client.tsp> \
+  --emit typespec-extension-exporter --output-dir ../../..
+
+npx tsp-client generate                      # @Beta customization reads the CSV
 ```
+
+No emitter option needs to be passed — the output location comes from the
+committed `emitter-output-dir`. The `@Beta` customization throws if
+`customizations/beta-annotations.csv` is missing, so the `tsp compile` step must
+run before `tsp-client generate`.
 
 `tsp-client generate --emitter-options` only feeds the **main** emitter
 (typespec-java) from `eng/emitter-package.json`, so it cannot run this emitter;
