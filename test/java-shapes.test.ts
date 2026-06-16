@@ -149,3 +149,74 @@ describe("tsp-ast-input output shape", () => {
     expect(Object.keys(outputs)).toEqual(["tsp-ast-input.json"]);
   });
 });
+
+/**
+ * Patterns observed in the real Foundry (`azure-ai-agents`) output that are not
+ * covered by the basic SAMPLE above. These lock in behavior validated against
+ * the actual generated `beta-annotations.csv` without depending on the external
+ * spec:
+ *  - snake_case property names are preserved verbatim as `member_name`
+ *    (e.g. `agent_card`, `entry_point`),
+ *  - multiple preview keys on one entity are merged, sorted, and comma-joined
+ *    (e.g. `CodeAgents=V1Preview, ExternalAgents=V1Preview, ...`).
+ *
+ * (Internal-access placement into `implementation.models` is driven purely by
+ * `getJavaTypeFqn` and is covered directly in `test/unit/transform.test.ts`;
+ * forcing a synthetic model to internal access here would test TCGC's access
+ * resolution rather than this emitter.)
+ */
+const REAL_WORLD_SAMPLE = `
+  @service(#{ title: "Agents" })
+  namespace Agents;
+
+  @extension(
+    "x-ms-foundry-meta",
+    #{ required_previews: #["WorkflowAgents=V1Preview", "CodeAgents=V1Preview", "ExternalAgents=V1Preview", "HostedAgents=V1Preview"] }
+  )
+  model AgentDefinition {
+    name: string;
+  }
+
+  model AgentDetails {
+    name: string;
+
+    @extension("x-ms-foundry-meta", #{ required_previews: #["AgentEndpoints=V1Preview"] })
+    agent_card?: string;
+  }
+
+  @route("/get")
+  op get(): { def: AgentDefinition; details: AgentDetails };
+`;
+
+describe("real-world Foundry patterns (tsp-ast-input)", () => {
+  it("preserves snake_case property names verbatim as member_name", async () => {
+    const entries = await emitJsonTcgc<TspAstInputEntry[]>(
+      TcgcTester,
+      REAL_WORLD_SAMPLE,
+      { ...JAVA_OPTIONS, "output-shape": "tsp-ast-input" },
+    );
+
+    expect(entries).toContainEqual({
+      type: "field",
+      class_name: "com.azure.ai.agents.models.AgentDetails",
+      annotation_description: "Preview API. AgentEndpoints=V1Preview",
+      member_name: "agent_card",
+    });
+  });
+
+  it("merges, sorts, and comma-joins multiple preview keys on one entity", async () => {
+    const entries = await emitJsonTcgc<TspAstInputEntry[]>(
+      TcgcTester,
+      REAL_WORLD_SAMPLE,
+      { ...JAVA_OPTIONS, "output-shape": "tsp-ast-input" },
+    );
+
+    expect(entries).toContainEqual({
+      type: "class",
+      class_name: "com.azure.ai.agents.models.AgentDefinition",
+      annotation_description:
+        "Preview API. CodeAgents=V1Preview, ExternalAgents=V1Preview, HostedAgents=V1Preview, WorkflowAgents=V1Preview",
+    });
+  });
+});
+
