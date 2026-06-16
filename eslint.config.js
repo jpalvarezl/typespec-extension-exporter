@@ -18,6 +18,16 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Node scripts (build/emit helpers) run on the Node global object.
+    files: ["**/*.mjs", "*.config.js"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
   // Keep ESLint out of formatting concerns; Prettier owns those.
   prettier,
 );

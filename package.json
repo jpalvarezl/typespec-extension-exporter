@@ -15,10 +15,9 @@
   "files": [
     "dist",
     "README.md",
+    "docs",
     "LICENSE",
-    "sample",
-    "foundry/*.tspconfig.yaml",
-    "foundry/setup-foundry-deps.sh"
+    "sample"
   ],
   "scripts": {
     "build": "tsc -p .",
@@ -31,15 +30,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "rimraf dist",
-    "foundry:setup": "bash foundry/setup-foundry-deps.sh",
-    "foundry:emit:agents": "tsp compile \"$FOUNDRY_DIR/src/sdk-java-azure-ai-agents/client.tsp\" --config foundry/agents.tspconfig.yaml",
-    "foundry:emit:projects": "tsp compile \"$FOUNDRY_DIR/src/sdk-java-azure-ai-projects/client.tsp\" --config foundry/projects.tspconfig.yaml",
-    "foundry:emit": "npm run foundry:emit:agents && npm run foundry:emit:projects"
+    "foundry:emit": "node foundry/emit.mjs",
+    "foundry:emit:agents": "node foundry/emit.mjs agents",
+    "foundry:emit:projects": "node foundry/emit.mjs projects"
   },
   "peerDependencies": {
-    "@azure-tools/typespec-client-generator-core": ">=0.69.0",
-    "@typespec/compiler": ">=1.13.0",
-    "@typespec/openapi": ">=1.13.0"
+    "@azure-tools/typespec-client-generator-core": ">=0.68.0",
+    "@typespec/compiler": ">=1.12.0",
+    "@typespec/openapi": ">=1.12.0"
   },
   "devDependencies": {
     "@azure-tools/openai-typespec": "1.20.1",
@@ -72,7 +70,7 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "yaml": "^2.9.0"
+    "yaml": "^2.8.0"
   },
   "repository": {
     "type": "git",

@@ -1,6 +1,6 @@
 ---
 name: typespec-extension-exporter
-description: "Build, configure, and run the typespec-extension-exporter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; generating tsp-ast-input annotation customization data; dumping raw @extension occurrences; serializing output as JSON/YAML/CSV; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-shape, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR setup flow."
+description: "Build, configure, and run the typespec-extension-exporter TypeSpec emitter in this repo. USE WHEN: working on this emitter; generating a revapi differences ignore list from @extension-marked beta entities; generating tsp-ast-input annotation customization data; dumping raw @extension occurrences; serializing output as JSON/YAML/CSV; running it against the Azure AI Foundry spec (agents/projects); understanding the emitter config options (keys, kinds, output-shape, output-format, java-namespace, subpackages, justification); wiring the Foundry spec into the emitter. Explains every option value, the npm scripts, and the FOUNDRY_DIR emit flow."
 ---
 
 # typespec-extension-exporter
@@ -27,15 +27,24 @@ customization input.
 
 ## Project layout
 
-| Path                                                                        | Purpose                                                                  |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [src/index.ts](../../../src/index.ts)                                       | `$onEmit` entry; raw + Java beta entity collection and output transforms |
-| [src/lib.ts](../../../src/lib.ts)                                           | `$lib` definition + options schema (`ExtensionEmitterOptions`)           |
-| [foundry/setup-foundry-deps.sh](../../../foundry/setup-foundry-deps.sh)     | Installs spec libs + symlinks the emitter into the spec tree             |
-| [foundry/agents.tspconfig.yaml](../../../foundry/agents.tspconfig.yaml)     | Config for `sdk-java-azure-ai-agents`                                    |
-| [foundry/projects.tspconfig.yaml](../../../foundry/projects.tspconfig.yaml) | Config for `sdk-java-azure-ai-projects`                                  |
-| `foundry/tsp-output/typespec-extension-exporter/`                           | Generated Foundry outputs (`*.revapi.*`, `*.tsp-ast-input.*`)            |
-| [sample/](../../../sample/)                                                 | Minimal standalone test spec                                             |
+| Path                                                        | Purpose                                                               |
+| ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| [src/index.ts](../../../src/index.ts)                       | `$onEmit` orchestrator (re-exports `$lib` + public output types)      |
+| [src/lib.ts](../../../src/lib.ts)                           | `$lib` definition + options schema (`ExtensionEmitterOptions`)        |
+| [src/options.ts](../../../src/options.ts)                   | Filter parsing, Java naming options, option-validation helpers        |
+| [src/collect-raw.ts](../../../src/collect-raw.ts)           | Raw `@extension` occurrence collection via the type graph             |
+| [src/collect-beta.ts](../../../src/collect-beta.ts)         | TCGC beta-entity collection (Java output modes)                       |
+| [src/transform.ts](../../../src/transform.ts)               | revapi + tsp-ast-input transforms and Java FQN/text helpers           |
+| [src/serialize.ts](../../../src/serialize.ts)               | JSON/YAML/CSV serialization                                           |
+| [foundry/emit.mjs](../../../foundry/emit.mjs)               | Cross-platform helper: build, link into spec tree, emit both projects |
+| `foundry/tsp-output/<project>/typespec-extension-exporter/` | Generated Foundry outputs (gitignored)                                |
+| [test/](../../../test/)                                     | Vitest integration + unit tests                                       |
+| [sample/](../../../sample/)                                 | Minimal standalone test spec                                          |
+
+The Foundry spec's two Java SDK projects carry this emitter's options in their
+own `tspconfig.yaml` (in the `azure-rest-api-specs` repo), under
+`options.typespec-extension-exporter`. That block is inert unless the emitter is
+selected with `--emit`.
 
 The emitter is registered under the name **`typespec-extension-exporter`** (matches
 `package.json` `name` and `$lib.name`). The output directory is derived from
@@ -87,7 +96,10 @@ comma-separated strings.
 ```bash
 npm install
 npm run build      # tsc -p .  → dist/
-npm run watch      # rebuild on change (symlinked into spec tree, picked up live)
+npm run watch      # rebuild on change
+npm test           # build + vitest suite
+npm run lint       # ESLint
+npm run format     # Prettier
 ```
 
 ## Run against the sample spec (quick smoke test)
@@ -99,70 +111,89 @@ npx tsp compile sample/main.tsp --config sample/tspconfig.yaml
 
 ## Run against the Foundry spec
 
-The Foundry spec (Azure REST API specs repo) has no `node_modules` in its tree,
-so the emitter and the TypeSpec libraries it imports must be installed/linked
-there first. TypeSpec resolves imports starting from the spec file's directory
-and walking up.
+The Foundry spec lives in the `azure-rest-api-specs` repo. Each Java SDK project
+(`sdk-java-azure-ai-agents`, `sdk-java-azure-ai-projects`) carries this emitter's
+options in its own `tspconfig.yaml` under `options.typespec-extension-exporter`
+(default output: the `tsp-ast-input` CSV `beta-annotations.csv` the Java SDK
+consumes). The block is **inert** unless the emitter is selected with `--emit`,
+so a plain `tsp compile` ignores it.
 
-### 1. Point `FOUNDRY_DIR` at the Foundry directory
+TypeSpec resolves emitters from the spec's own directory tree (NOT global
+installs), so the emitter must be present in a `node_modules` above the spec
+files. Onboard once with either `npm link` or `npm install --no-save
+typespec-extension-exporter` inside the spec repo.
+
+### Emit (local dev helper)
 
 ```bash
-set -x FOUNDRY_DIR /path/to/azure-rest-api-specs/specification/ai-foundry/data-plane/Foundry
+export FOUNDRY_DIR=/path/to/azure-rest-api-specs/specification/ai-foundry/data-plane/Foundry
+npm run foundry:emit            # both projects -> foundry/tsp-output/<project>/
+npm run foundry:emit:agents     # one project
+
+# Write straight into a Java SDK module's customizations/ folder:
+node foundry/emit.mjs agents \
+  --agents-out /path/to/azure-sdk-for-java/sdk/ai/azure-ai-agents/customizations
 ```
 
-(`FOUNDRY_DIR` must contain `src/sdk-java-azure-ai-agents/client.tsp` and
-`src/sdk-java-azure-ai-projects/client.tsp`.)
+[foundry/emit.mjs](../../../foundry/emit.mjs) (cross-platform) builds the
+emitter, copies its `dist` + `package.json` into the spec tree's `node_modules`
+(no nested `node_modules`, so it resolves the spec repo's own `@typespec/*` and
+`yaml` versions — avoiding "multiple versions" warnings), then compiles each
+project's `client.tsp` with `--emit typespec-extension-exporter`. It passes
+`--option typespec-extension-exporter.emitter-output-dir=<target>` so the file
+lands **directly** in the target (no `typespec-extension-exporter/` subfolder).
+Target defaults to `foundry/tsp-output/<project>/`; `--<project>-out <dir>`
+overrides it (e.g. the Java module's `customizations/`). Options otherwise come
+from the spec's committed `tspconfig.yaml`. `FOUNDRY_DIR` can also be passed as
+`--foundry-dir <path>`.
 
-### 2. One-time setup (or after dependency changes)
-
-```bash
-npm run foundry:setup "$FOUNDRY_DIR"
-```
-
-This [script](../../../foundry/setup-foundry-deps.sh) builds the emitter, writes
-a temporary `package.json` into `$FOUNDRY_DIR` listing the required TypeSpec
-libs plus `"typespec-extension-exporter": "file:<this repo>"` (npm installs it as a
-**symlink**), runs `npm install`, then removes the temp manifest and lockfile so
-the spec repo's git status stays clean. The gitignored `node_modules` remains
-and is enough for resolution. After this, `--emit typespec-extension-exporter` works
-by name.
-
-### 3. Emit
+### Verify
 
 ```bash
-npm run foundry:emit:agents     # → foundry/tsp-output/typespec-extension-exporter/agents.revapi.json
-npm run foundry:emit:projects   # → .../projects.revapi.json
-npm run foundry:emit            # both
-```
+node -e "const fs=require('fs');const f='foundry/tsp-output/agents/beta-annotations.csv';console.log(fs.readFileSync(f,'utf8').trim().split('\n').length-1, 'entries');"
+# expected order of magnitude: agents≈74, projects≈25 entries
 
-Each script compiles the project's `client.tsp` entrypoint (NOT `main.tsp`)
-with its matching config. The configs mirror the spec project's `imports` so
-all decorators/namespaces resolve, and pin `java-namespace`.
-
-### 4. Verify
-
-```bash
-node -e "const a=require('./foundry/tsp-output/typespec-extension-exporter/agents.revapi.json'),p=require('./foundry/tsp-output/typespec-extension-exporter/projects.revapi.json');console.log('agents='+a.length,'projects='+p.length);"
-# expected order of magnitude: agents≈74, projects≈25
-
-# spec repo must stay clean:
+# spec repo should only show the two tspconfig.yaml edits as tracked changes:
 git -C /path/to/azure-rest-api-specs status --short specification/ai-foundry/data-plane/Foundry/
 ```
 
+### From the Java SDK repo (tsp-client)
+
+The committed options survive `tsp-client sync` (the materialized spec under
+`TempTypeSpecFiles/` keeps the `options.typespec-extension-exporter` block).
+With the emitter onboarded, compile the synced `client.tsp` and point
+`emitter-output-dir` at the module's `customizations/`:
+
+```bash
+npx tsp compile TempTypeSpecFiles/<...>/sdk-java-azure-ai-agents/client.tsp \
+  --emit typespec-extension-exporter \
+  --option typespec-extension-exporter.emitter-output-dir=$PWD/customizations
+```
+
+`tsp-client generate --emitter-options` only feeds the **main** emitter
+(typespec-java) from `eng/emitter-package.json`, so it cannot run this emitter;
+use the `--emit` compile above (or the `emit.mjs` helper) as a separate step
+before generation.
+
 ## Adding a new Foundry project
 
-1. Copy an existing `foundry/<name>.tspconfig.yaml`, adjust `imports` to mirror
-   the spec project's own tspconfig, set `output-file` and `java-namespace`
-   (match the `typespec-java` emitter's `namespace` from that project's
-   `tspconfig.yaml`).
-2. Add a `foundry:emit:<name>` npm script pointing at its `client.tsp`.
+1. Add an `options.typespec-extension-exporter` block to that project's
+   `tspconfig.yaml` in the spec repo (`keys`, `output-shape`, `output-format`,
+   `output-file`, and `java-namespace` matching the `typespec-java` emitter's
+   `namespace`).
+2. Add the project to the `PROJECTS` map in
+   [foundry/emit.mjs](../../../foundry/emit.mjs) and a `foundry:emit:<name>` npm
+   script.
 
 ## Gotchas
 
-- **Use the npm scripts to emit**, not a bare `npx tsp compile`, so the emitter
-  actually runs in the linked spec tree.
+- Emitter options in `tspconfig.yaml` are **inert** unless the emitter is in the
+  `emit` list or passed via `--emit`; committing them upstream is safe.
+- TypeSpec has **no global emitter resolution** — `npm install -g` alone is not
+  enough; the emitter must be linked/installed into the spec tree.
 - `kinds` and `keys` must be comma-separated **strings**; array values fail
-  schema validation.
+  schema validation. Invalid `kinds`/`keys` values produce a warning diagnostic
+  (`unknown-kind` / `non-extension-key`) but do not fail the build.
 - Property names from TCGC may be snake_case or camelCase; revapi mode
   PascalCases them for the Java accessor regex. `tsp-ast-input` mode uses the
   TCGC property/member name directly in `member_name`.
