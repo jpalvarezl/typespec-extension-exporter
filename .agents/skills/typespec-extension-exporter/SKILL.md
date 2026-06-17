@@ -168,7 +168,6 @@ From the module dir that's `../../..`:
 
 ```bash
 npx tsp-client sync                                    # materializes TempTypeSpecFiles/
-npx tsp-client install-dependencies                    # TypeSpec libs the compile needs
 npm install --no-save typespec-extension-exporter      # run from within `TempTypeSpecFiles`
 
 npx tsp compile <synced client.tsp> \                  # run from within `TempTypeSpecFiles`

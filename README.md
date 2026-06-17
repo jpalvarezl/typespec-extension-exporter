@@ -183,12 +183,10 @@ CSV lands in the library module's `customizations/` folder automatically when
 `{output-dir}` is the `azure-sdk-for-java` repo root (which is what `tsp-client`
 uses).
 
-From the library module (e.g. `sdk/ai/azure-ai-agents`), the repo root is
-`../../..`, so a manual run is:
+From the library module (e.g. `sdk/ai/azure-ai-agents`):
 
 ```bash
 npx tsp-client sync                                    # materializes TempTypeSpecFiles/
-npx tsp-client install-dependencies                    # TypeSpec libs the compile needs
 npm install --no-save typespec-extension-exporter      # run from within `TempTypeSpecFiles`
 
 npx tsp compile <synced client.tsp> \                  # run from within `TempTypeSpecFiles`
