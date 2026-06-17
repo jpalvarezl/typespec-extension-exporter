@@ -167,14 +167,14 @@ so the CSV lands in the library module's `customizations/` automatically when
 From the module dir that's `../../..`:
 
 ```bash
-npx tsp-client sync
-npx tsp-client install-dependencies          # TypeSpec libs the compile needs
-npm link typespec-extension-exporter         # or npm install --no-save once published
+npx tsp-client sync                                    # materializes TempTypeSpecFiles/
+npx tsp-client install-dependencies                    # TypeSpec libs the compile needs
+npm install --no-save typespec-extension-exporter      # run from within `TempTypeSpecFiles`
 
-npx tsp compile <synced client.tsp> \
-  --emit typespec-extension-exporter --output-dir ../../..
+npx tsp compile <synced client.tsp> \                  # run from within `TempTypeSpecFiles`
+  --emit typespec-extension-exporter
 
-npx tsp-client generate                      # @Beta customization reads the CSV
+npx tsp-client generate                                # Java codegen, from package root; @Beta customization reads the CSV
 ```
 
 No emitter option needs to be passed — the output location comes from the

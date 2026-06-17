@@ -187,15 +187,14 @@ From the library module (e.g. `sdk/ai/azure-ai-agents`), the repo root is
 `../../..`, so a manual run is:
 
 ```bash
-npx tsp-client sync                       # materializes TempTypeSpecFiles/
-npx tsp-client install-dependencies       # TypeSpec libs the compile needs
-npm link typespec-extension-exporter      # onboarding (or: npm install --no-save, once published)
+npx tsp-client sync                                    # materializes TempTypeSpecFiles/
+npx tsp-client install-dependencies                    # TypeSpec libs the compile needs
+npm install --no-save typespec-extension-exporter      # run from within `TempTypeSpecFiles`
 
-npx tsp compile <synced client.tsp> \
-  --emit typespec-extension-exporter \
-  --output-dir ../../..                    # -> customizations/beta-annotations.csv
+npx tsp compile <synced client.tsp> \                  # run from within `TempTypeSpecFiles`
+  --emit typespec-extension-exporter
 
-npx tsp-client generate                   # Java codegen; @Beta customization reads the CSV
+npx tsp-client generate                                # Java codegen, from package root; @Beta customization reads the CSV
 ```
 
 The `@Beta` customization **requires** `customizations/beta-annotations.csv` to
