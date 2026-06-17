@@ -176,31 +176,34 @@ directly — no `typespec-extension-exporter/` subfolder — via the built-in
 ### Using `tsp-client` from the Java SDK repo
 
 The committed options flow through the Java SDK repo's `tsp-location.yaml`
-process. Each project's `tspconfig.yaml` already sets `emitter-output-dir` to
-`{output-dir}/{service-dir}/azure-ai-<project>/customizations` — the same
-`{output-dir}/{service-dir}/...` interpolation the Java emitter uses — so the
-CSV lands in the library module's `customizations/` folder automatically when
-`{output-dir}` is the `azure-sdk-for-java` repo root (which is what `tsp-client`
-uses).
+process. Each project's `tspconfig.yaml` sets
+`emitter-output-dir: "{cwd}/../customizations"`, so — when `tsp compile` is run
+from inside `TempTypeSpecFiles` — the CSV lands in the library module's
+`customizations/` folder automatically, with no `--output-dir` or other flag
+needed (`{cwd}` is the process working directory, and `TempTypeSpecFiles` sits
+directly beside `customizations/` in the module).
 
 From the library module (e.g. `sdk/ai/azure-ai-agents`):
 
 ```bash
 npx tsp-client sync                                    # materializes TempTypeSpecFiles/
-npm install --no-save typespec-extension-exporter      # run from within `TempTypeSpecFiles`
 
-npx tsp compile <synced client.tsp> \                  # run from within `TempTypeSpecFiles`
+cd TempTypeSpecFiles
+npm install --no-save typespec-extension-exporter      # the published emitter + its deps
+
+npx tsp compile <synced client.tsp> \                  # run from within TempTypeSpecFiles
   --emit typespec-extension-exporter
+cd ..
 
-npx tsp-client generate                                # Java codegen, from package root; @Beta customization reads the CSV
+npx tsp-client generate                                # Java codegen; @Beta customization reads the CSV
 ```
 
 The `@Beta` customization **requires** `customizations/beta-annotations.csv` to
 exist, so the `tsp compile` step must run before `tsp-client generate`. No
 emitter option needs to be passed — the output location comes from the committed
-`emitter-output-dir`. For everyday local iteration the
-[`foundry/emit.mjs`](foundry/emit.mjs) helper does the build/link/emit in one
-command and is the lowest-friction path.
+`emitter-output-dir`. Because that path is `{cwd}`-relative, the `tsp compile`
+must be invoked **from inside `TempTypeSpecFiles`**; running it elsewhere puts
+the CSV in the wrong place.
 
 ## Documentation
 

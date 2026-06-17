@@ -27,19 +27,24 @@ customization input.
 
 ## Project layout
 
-| Path                                                        | Purpose                                                               |
-| ----------------------------------------------------------- | --------------------------------------------------------------------- |
-| [src/index.ts](../../../src/index.ts)                       | `$onEmit` orchestrator (re-exports `$lib` + public output types)      |
-| [src/lib.ts](../../../src/lib.ts)                           | `$lib` definition + options schema (`ExtensionEmitterOptions`)        |
-| [src/options.ts](../../../src/options.ts)                   | Filter parsing, Java naming options, option-validation helpers        |
-| [src/collect-raw.ts](../../../src/collect-raw.ts)           | Raw `@extension` occurrence collection via the type graph             |
-| [src/collect-beta.ts](../../../src/collect-beta.ts)         | TCGC beta-entity collection (Java output modes)                       |
-| [src/transform.ts](../../../src/transform.ts)               | revapi + tsp-ast-input transforms and Java FQN/text helpers           |
-| [src/serialize.ts](../../../src/serialize.ts)               | JSON/YAML/CSV serialization                                           |
-| [foundry/emit.mjs](../../../foundry/emit.mjs)               | Cross-platform helper: build, link into spec tree, emit both projects |
-| `foundry/tsp-output/<project>/typespec-extension-exporter/` | Generated Foundry outputs (gitignored)                                |
-| [test/](../../../test/)                                     | Vitest integration + unit tests                                       |
-| [sample/](../../../sample/)                                 | Minimal standalone test spec                                          |
+File links below point at the canonical source repo
+(<https://github.com/jpalvarezl/typespec-extension-exporter>) so the skill works
+regardless of where it is installed. Note the published npm package ships only
+`dist/`, `README.md`, `docs/`, `LICENSE`, and `sample/` — `foundry/` and `test/`
+exist only in the source repo.
+
+| Path                                                                                                           | Purpose                                                                             |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [src/index.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/index.ts)               | `$onEmit` orchestrator (re-exports `$lib` + public output types)                    |
+| [src/lib.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/lib.ts)                   | `$lib` definition + options schema (`ExtensionEmitterOptions`)                      |
+| [src/options.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/options.ts)           | Filter parsing, Java naming options, option-validation helpers                      |
+| [src/collect-raw.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/collect-raw.ts)   | Raw `@extension` occurrence collection via the type graph                           |
+| [src/collect-beta.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/collect-beta.ts) | TCGC beta-entity collection (Java output modes)                                     |
+| [src/transform.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/transform.ts)       | revapi + tsp-ast-input transforms and Java FQN/text helpers                         |
+| [src/serialize.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/serialize.ts)       | JSON/YAML/CSV serialization                                                         |
+| [foundry/emit.mjs](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/foundry/emit.mjs)       | Cross-platform helper for emitting against a local spec checkout (source repo only) |
+| [test/](https://github.com/jpalvarezl/typespec-extension-exporter/tree/main/test)                              | Vitest integration + unit tests (source repo only)                                  |
+| [sample/](https://github.com/jpalvarezl/typespec-extension-exporter/tree/main/sample)                          | Minimal standalone test spec                                                        |
 
 The Foundry spec's two Java SDK projects carry this emitter's options in their
 own `tspconfig.yaml` (in the `azure-rest-api-specs` repo), under
@@ -54,7 +59,8 @@ this name: `tsp-output/typespec-extension-exporter/`.
 
 Pass via `--option typespec-extension-exporter.<name>=<value>` or under
 `options.typespec-extension-exporter` in a `tspconfig.yaml`. Schema lives in
-[src/lib.ts](../../../src/lib.ts) (`additionalProperties: false`, so unknown
+[src/lib.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/lib.ts)
+(`additionalProperties: false`, so unknown
 keys fail validation). Array-style values are NOT supported — use
 comma-separated strings.
 
@@ -135,7 +141,8 @@ node foundry/emit.mjs agents \
   --agents-out /path/to/azure-sdk-for-java/sdk/ai/azure-ai-agents/customizations
 ```
 
-[foundry/emit.mjs](../../../foundry/emit.mjs) (cross-platform) builds the
+[foundry/emit.mjs](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/foundry/emit.mjs)
+(cross-platform) builds the
 emitter, copies its `dist` + `package.json` into the spec tree's `node_modules`
 (no nested `node_modules`, so it resolves the spec repo's own `@typespec/*` and
 `yaml` versions — avoiding "multiple versions" warnings), then compiles each
@@ -186,7 +193,8 @@ before generation.
    `output-file`, and `java-namespace` matching the `typespec-java` emitter's
    `namespace`).
 2. Add the project to the `PROJECTS` map in
-   [foundry/emit.mjs](../../../foundry/emit.mjs) and a `foundry:emit:<name>` npm
+   [foundry/emit.mjs](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/foundry/emit.mjs)
+   and a `foundry:emit:<name>` npm
    script.
 
 ## Gotchas
@@ -194,7 +202,14 @@ before generation.
 - Emitter options in `tspconfig.yaml` are **inert** unless the emitter is in the
   `emit` list or passed via `--emit`; committing them upstream is safe.
 - TypeSpec has **no global emitter resolution** — `npm install -g` alone is not
-  enough; the emitter must be linked/installed into the spec tree.
+  enough; the emitter must be linked/installed into the spec tree
+  (`npm install --no-save typespec-extension-exporter`).
+- The Foundry configs set `emitter-output-dir: "{cwd}/../customizations"`, which
+  is **cwd-relative**: it only resolves to the Java module's `customizations/`
+  when `tsp compile` is invoked from inside `TempTypeSpecFiles`. Run it from
+  anywhere else and the CSV lands in the wrong place. (`{cwd}` is the process
+  working directory; the `foundry/emit.mjs` helper is unaffected because it
+  overrides `emitter-output-dir` via `--option`.)
 - `kinds` and `keys` must be comma-separated **strings**; array values fail
   schema validation. Invalid `kinds`/`keys` values produce a warning diagnostic
   (`unknown-kind` / `non-extension-key`) but do not fail the build.
