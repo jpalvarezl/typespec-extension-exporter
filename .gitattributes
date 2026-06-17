@@ -1,0 +1,10 @@
+# Normalize all text files to LF in the repo and on checkout (Mac + Windows).
+* text=auto eol=lf
+
+# Explicitly treat known binary types as binary (no EOL conversion).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
