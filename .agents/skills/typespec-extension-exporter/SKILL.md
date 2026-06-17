@@ -159,13 +159,6 @@ git -C /path/to/azure-rest-api-specs status --short specification/ai-foundry/dat
 
 ### From the Java SDK repo (tsp-client)
 
-The committed options survive `tsp-client sync` (the materialized spec keeps the
-`options.typespec-extension-exporter` block). Each project's `tspconfig.yaml`
-sets `emitter-output-dir: "{output-dir}/{service-dir}/azure-ai-<project>/customizations"`,
-so the CSV lands in the library module's `customizations/` automatically when
-`{output-dir}` is the `azure-sdk-for-java` repo root (what `tsp-client` uses).
-From the module dir that's `../../..`:
-
 ```bash
 npx tsp-client sync                                    # materializes TempTypeSpecFiles/
 npm install --no-save typespec-extension-exporter      # run from within `TempTypeSpecFiles`
