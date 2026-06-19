@@ -2,7 +2,9 @@ import type { ExtensionEmitterOptions } from "./lib.js";
 import {
   getBaseAnnotationDescription,
   getJavaNameOptions,
+  getSdkNameOptions,
   type JavaNameOptions,
+  type SdkNameOptions,
 } from "./options.js";
 import type {
   CollectedBeta,
@@ -90,7 +92,7 @@ interface PreviewAccumulator<T> {
  * directly under the client namespace from `@@clientNamespace`. */
 export function getClassFqn(
   entity: { name: string; namespace: string },
-  options: JavaNameOptions,
+  options: SdkNameOptions,
 ): string {
   const base = options.namespaceOverride ?? entity.namespace;
   return [base, entity.name]
@@ -111,16 +113,16 @@ export function toListShape(
   collected: CollectedBeta,
   options: ExtensionEmitterOptions,
 ): ListShape {
-  const javaNames = getJavaNameOptions(options);
+  const sdkNames = getSdkNameOptions(options);
   const classes = new Set<string>();
   for (const type of collected.types) {
-    classes.add(getClassFqn(type, javaNames));
+    classes.add(getClassFqn(type, sdkNames));
   }
   const fields = new Set<string>();
   for (const prop of collected.properties) {
     const containerFqn = getClassFqn(
       { name: prop.containerName, namespace: prop.containerNamespace },
-      javaNames,
+      sdkNames,
     );
     fields.add(`${containerFqn}::${prop.propertyName}`);
   }

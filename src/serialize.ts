@@ -39,8 +39,25 @@ function getCsvHeaders(shape: OutputShape): string[] {
   }
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+function isListShape(payload: unknown): payload is ListShape {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  const candidate = payload as Record<string, unknown>;
+  return isStringArray(candidate.class) && isStringArray(candidate.field);
+}
+
 /** Flatten the `list` object into `{ type, name }` rows (classes then fields). */
-function listShapeToRows(payload: ListShape): Array<Record<string, string>> {
+function listShapeToRows(payload: unknown): Array<Record<string, string>> {
+  if (!isListShape(payload)) {
+    return [];
+  }
   return [
     ...payload.class.map((name) => ({ type: "class", name })),
     ...payload.field.map((name) => ({ type: "field", name })),
@@ -63,7 +80,7 @@ export function serializeCsv(payload: unknown, shape: OutputShape): string {
   const headers = getCsvHeaders(shape);
   const rows =
     shape === "list"
-      ? listShapeToRows(payload as ListShape)
+      ? listShapeToRows(payload)
       : Array.isArray(payload)
         ? payload
         : [];

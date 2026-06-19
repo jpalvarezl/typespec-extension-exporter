@@ -85,16 +85,35 @@ export const EMITTER_SCOPES: Readonly<Record<string, string>> = {
  * (so a full emitter name can be supplied). Defaults to Java.
  */
 export function resolveEmitterScope(language: string | undefined): string {
-  if (!language) {
+  const trimmed = language?.trim();
+  if (!trimmed) {
     return EMITTER_SCOPES.java;
   }
-  const key = language.trim().toLowerCase();
-  return EMITTER_SCOPES[key] ?? language.trim();
+  const key = trimmed.toLowerCase();
+  return EMITTER_SCOPES[key] ?? trimmed;
 }
 
-/** Shared Java naming options for outputs based on generated Java symbols. */
-export interface JavaNameOptions {
+/** True when the language option is unset/blank or resolves to the Java scope. */
+export function resolvesToJavaScope(language: string | undefined): boolean {
+  return resolveEmitterScope(language) === EMITTER_SCOPES.java;
+}
+
+/** Shared naming options for generated SDK symbols. */
+export interface SdkNameOptions {
   namespaceOverride?: string;
+}
+
+/** Resolve the base SDK namespace/package override shared by SDK outputs. */
+export function getSdkNameOptions(
+  options: ExtensionEmitterOptions,
+): SdkNameOptions {
+  return {
+    namespaceOverride: options["namespace"],
+  };
+}
+
+/** Java naming options for outputs based on generated Java symbols. */
+export interface JavaNameOptions extends SdkNameOptions {
   modelsSubpackage: string;
   internalSubpackage: string;
 }
@@ -104,7 +123,7 @@ export function getJavaNameOptions(
   options: ExtensionEmitterOptions,
 ): JavaNameOptions {
   return {
-    namespaceOverride: options["namespace"],
+    ...getSdkNameOptions(options),
     modelsSubpackage: options["models-subpackage"] ?? "models",
     internalSubpackage:
       options["internal-subpackage"] ?? "implementation.models",

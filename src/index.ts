@@ -10,6 +10,7 @@ import {
   parseKeyFilter,
   parseKindFilter,
   resolveEmitterScope,
+  resolvesToJavaScope,
 } from "./options.js";
 import { getDefaultOutputFile, serializePayload } from "./serialize.js";
 import {
@@ -54,15 +55,27 @@ export async function $onEmit(
   const format = options["output-format"] ?? "json";
 
   let payload: unknown;
-  if (shape === "revapi" || shape === "tsp-ast-input" || shape === "list") {
-    const scope = resolveEmitterScope(options.language);
-    const collected = await collectBetaFromTcgc(context, keyFilter, scope);
+  if (shape === "revapi" || shape === "tsp-ast-input") {
+    const language = options.language?.trim();
+    if (language && !resolvesToJavaScope(language)) {
+      reportDiagnostic(program, {
+        code: "non-java-language-for-java-shape",
+        format: { language, shape },
+        target: NoTarget,
+      });
+    }
+    // These outputs are intentionally Java-specific: revapi uses `java\\..*`
+    // codes and tsp-ast-input feeds Java AST customizations. Keep their TCGC
+    // scope fixed to Java so existing Java behavior remains unchanged.
+    const collected = await collectBetaFromTcgc(context, keyFilter);
     payload =
       shape === "revapi"
         ? toRevapiEntries(collected, options)
-        : shape === "tsp-ast-input"
-          ? toTspAstInputEntries(collected, options)
-          : toListShape(collected, options);
+        : toTspAstInputEntries(collected, options);
+  } else if (shape === "list") {
+    const scope = resolveEmitterScope(options.language);
+    const collected = await collectBetaFromTcgc(context, keyFilter, scope);
+    payload = toListShape(collected, options);
   } else {
     payload = collectRawOccurrences(context, kindFilter, keyFilter);
   }

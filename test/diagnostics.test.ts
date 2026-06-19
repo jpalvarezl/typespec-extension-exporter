@@ -66,4 +66,20 @@ describe("option diagnostics", () => {
       ),
     ).toHaveLength(2);
   });
+
+  it("warns when a non-Java language is supplied for Java-specific shapes", async () => {
+    const diagnostics = await diagnose({
+      keys: "x-a",
+      language: "csharp",
+      "output-shape": "revapi",
+    });
+
+    expectDiagnostics(diagnostics, [
+      {
+        code: "typespec-extension-exporter/non-java-language-for-java-shape",
+        severity: "warning",
+        message: /language.*csharp.*ignored.*revapi.*Java-specific/,
+      },
+    ]);
+  });
 });

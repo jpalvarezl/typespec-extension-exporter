@@ -39,10 +39,10 @@ export interface ExtensionEmitterOptions {
   // --- SDK-output options (used when output-shape is "revapi", "tsp-ast-input", or "list") ---
 
   /**
-   * Target SDK language, used to pick the TCGC emitter scope so language-scoped
-   * customizations (`@clientName(..., "<lang>")`, `@@clientNamespace(...,
-   * "<lang>")`) apply. Known values: "java" (default), "csharp". Any other value
-   * is treated as a raw TCGC emitter name.
+   * Target SDK language for the language-neutral `list` shape. Known values:
+   * "java" (default), "csharp". Any other value is treated as a raw TCGC
+   * emitter name. `revapi` and `tsp-ast-input` are Java-specific and always use
+   * the Java TCGC scope.
    */
   language?: string;
   /**
@@ -99,6 +99,12 @@ export const $lib = createTypeSpecLibrary({
       severity: "warning",
       messages: {
         default: paramMessage`Key '${"key"}' in the 'keys' option does not start with 'x-'; OpenAPI @extension keys always do, so it will never match.`,
+      },
+    },
+    "non-java-language-for-java-shape": {
+      severity: "warning",
+      messages: {
+        default: paramMessage`The 'language' option value '${"language"}' is ignored for output-shape '${"shape"}'; that shape is Java-specific. Use output-shape 'list' for language-neutral output.`,
       },
     },
   },

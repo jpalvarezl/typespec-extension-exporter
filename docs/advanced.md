@@ -39,18 +39,20 @@ tsp compile <path> --emit typespec-extension-exporter \
 
 ## SDK output modes (`revapi`, `tsp-ast-input`, and `list`)
 
-In all SDK output modes the emitter builds the TypeSpec Client Generator Core
-(TCGC) SDK model the same way the target language emitter does, so each beta
-entity is named exactly as it appears in the generated SDK. The `language`
-option picks the TCGC emitter scope (`java` by default, `csharp`, or a raw
-emitter name), so language-scoped customizations apply:
+All SDK output modes build a TypeSpec Client Generator Core (TCGC) SDK model and
+name beta entities from that model. The Java-oriented shapes (`revapi` and
+`tsp-ast-input`) always use the Java TCGC scope because their payloads target
+Java revapi and Java AST customization consumers. The language-neutral `list`
+shape uses the `language` option (`java` by default, `csharp`, or a raw emitter
+name) so language-scoped customizations apply.
 
-- `@clientName` / `@@clientName(..., "<lang>")` renames are applied.
+- `@clientName` / `@@clientName(..., "<lang>")` renames are applied according to
+  the selected TCGC scope.
 - The public/internal `access` decides the `models` vs `implementation.models`
-  subpackage (for `revapi`/`tsp-ast-input`; `list` uses no subpackage).
-- Anonymous models (e.g. request bodies) have no distinct public type and
-  are skipped — their beta members are covered by the named models they
-  originate from.
+  subpackage for `revapi`/`tsp-ast-input`; `list` uses no subpackage.
+- Anonymous models (e.g. request bodies) have no distinct public type and are
+  skipped — their beta members are covered by the named models they originate
+  from.
 
 The base namespace/package is taken from TCGC's resolved client namespace, or
 overridden with the `namespace` option. See the
@@ -103,9 +105,9 @@ The `annotation_description` starts from the `justification` option (default
 
 ### `list`
 
-The beta `class`/`field` entries (as seen in the `csv`/`tsp-ast-input` shapes)
-collapsed into two sorted, de-duplicated lists — language neutral, so pair it
-with `language`:
+The beta `class`/`field` entries collapsed by type into two sorted,
+de-duplicated lists. Its CSV serialization is the same data flattened back to
+`type;name` rows — language neutral, so pair it with `language`:
 
 - `class` — generated-SDK FQNs of the **type-level** beta entities (models,
   enums, unions).

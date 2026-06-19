@@ -1,3 +1,4 @@
+import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
 import { emitJsonTcgc, emitOutputs, TcgcTester } from "./test-host.js";
 
@@ -106,28 +107,29 @@ describe("list output shape", () => {
     expect(Object.keys(outputs)).toEqual(["list.json"]);
   });
 
-  it("serializes to YAML as two lists", async () => {
+  it("serializes to YAML as the exact two-list object", async () => {
     const outputs = await emitOutputs(TcgcTester, SAMPLE, {
       ...CSHARP_OPTIONS,
       "output-format": "yaml",
     });
     expect(Object.keys(outputs)).toEqual(["list.yaml"]);
-    const yaml = outputs["list.yaml"];
-    expect(yaml).toContain("class:");
-    expect(yaml).toContain("  - Azure.AI.Agents.AgentDefinition");
-    expect(yaml).toContain("field:");
-    expect(yaml).toContain("  - Azure.AI.Agents.Tool::blobUrl");
+    expect(parseYaml(outputs["list.yaml"])).toEqual({
+      class: ["Azure.AI.Agents.AgentDefinition", "Azure.AI.Agents.AgentKind"],
+      field: ["Azure.AI.Agents.Tool::blobUrl"],
+    });
   });
 
-  it("serializes to CSV as type;name rows (classes then fields)", async () => {
+  it("serializes to CSV as the flattened type;name view of the two lists", async () => {
     const outputs = await emitOutputs(TcgcTester, SAMPLE, {
       ...CSHARP_OPTIONS,
       "output-format": "csv",
     });
-    const csv = outputs["list.csv"].trimEnd().split("\n");
-    expect(csv[0]).toBe("type;name");
-    expect(csv).toContain("class;Azure.AI.Agents.AgentDefinition");
-    expect(csv).toContain("field;Azure.AI.Agents.Tool::blobUrl");
+    expect(outputs["list.csv"].trimEnd().split("\n")).toEqual([
+      "type;name",
+      "class;Azure.AI.Agents.AgentDefinition",
+      "class;Azure.AI.Agents.AgentKind",
+      "field;Azure.AI.Agents.Tool::blobUrl",
+    ]);
   });
 
   it("works under the default Java scope with a namespace override", async () => {

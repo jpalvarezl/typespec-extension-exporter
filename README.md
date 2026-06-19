@@ -1,10 +1,9 @@
 # typespec-extension-exporter
 
-A TypeSpec emitter that turns `@extension`-marked beta entities into a
-[revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html)
-ignore list or into annotation-insertion input for downstream AST customization.
-It can also dump every `@extension` decorator occurrence as raw data. Outputs
-can be serialized as JSON, YAML, or CSV.
+A TypeSpec emitter that exports `@extension` metadata as raw occurrences,
+Java-oriented beta suppression/customization inputs, or a language-neutral
+`list` shape that groups beta `class`/`field` names into two arrays. Outputs can
+be serialized as JSON, YAML, or CSV.
 
 ## Features
 
@@ -23,9 +22,9 @@ npm install typespec-extension-exporter
 
 The emitter has `@typespec/compiler`, `@typespec/openapi`, and
 `@azure-tools/typespec-client-generator-core` as peer dependencies, so they must
-be present in your TypeSpec project. TCGC is only used when the selected
-`output-shape` needs Java SDK entity names (`revapi` or `tsp-ast-input`), but it
-is still a required peer dependency because the emitter imports it directly.
+be present in your TypeSpec project. TCGC is used by the SDK-derived shapes
+(`revapi`, `tsp-ast-input`, and `list`) and is still a required peer dependency
+because the emitter imports it directly.
 
 ## Usage
 
@@ -53,19 +52,19 @@ The default `raw` output is a JSON array of `@extension` occurrences. See
 Pass options via `--option typespec-extension-exporter.<name>=<value>` (or under
 `options.typespec-extension-exporter` in `tspconfig.yaml`).
 
-| Option          | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `keys`          | string | Comma-separated, case-sensitive extension keys to include (e.g. `x-ms-foundry-meta`). Omit to include any key.                                                                                                                                                                                                                                                                                                                   |
-| `kinds`         | string | Comma-separated, case-insensitive target kinds to include (e.g. `model,modelProperty,operation,enum,union,scalar`). The alias `field` maps to `modelProperty`. Omit to include all kinds.                                                                                                                                                                                                                                        |
-| `output-shape`  | string | Semantic output shape: `raw` (default) emits raw occurrences; `revapi` emits a [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html) ignore list; `tsp-ast-input` emits annotation-insertion requests for downstream AST customization; `list` collapses the beta class/field entries into two lists (`class` FQNs and `field` references) named by their generated-SDK fully-qualified name. |
-| `output-format` | string | Serialization format: `json` (default), `yaml`, or `csv`. CSV output uses `;` as the delimiter.                                                                                                                                                                                                                                                                                                                                  |
-| `output-file`   | string | Name of the output file to write. Defaults to `extensions.<format>` for raw, `revapi.<format>` for revapi, `tsp-ast-input.<format>` for tsp-ast-input, or `list.<format>` for list.                                                                                                                                                                                                                                              |
+| Option          | Type   | Description                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keys`          | string | Comma-separated, case-sensitive extension keys to include (e.g. `x-ms-foundry-meta`). Omit to include any key.                                                                                                                                                                                                                                                              |
+| `kinds`         | string | Comma-separated, case-insensitive target kinds to include (e.g. `model,modelProperty,operation,enum,union,scalar`). The alias `field` maps to `modelProperty`. Omit to include all kinds.                                                                                                                                                                                   |
+| `output-shape`  | string | Semantic output shape: `raw` (default) emits raw occurrences; `revapi` emits a [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html) ignore list; `tsp-ast-input` emits annotation-insertion requests for downstream AST customization; `list` collapses the beta `type;name` rows into two lists (`class` FQNs and `field` references). |
+| `output-format` | string | Serialization format: `json` (default), `yaml`, or `csv`. CSV output uses `;` as the delimiter.                                                                                                                                                                                                                                                                             |
+| `output-file`   | string | Name of the output file to write. Defaults to `extensions.<format>` for raw, `revapi.<format>` for revapi, `tsp-ast-input.<format>` for tsp-ast-input, or `list.<format>` for list.                                                                                                                                                                                         |
 
 #### SDK-output options (used when `output-shape` is `revapi`, `tsp-ast-input`, or `list`)
 
 | Option                | Type   | Description                                                                                                                                                                                                                                                                                                                                        |
 | --------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `language`            | string | Target SDK language, used to pick the TCGC emitter scope so language-scoped customizations (`@clientName(..., "<lang>")`, `@@clientNamespace(..., "<lang>")`) apply. Known values: `java` (default), `csharp`. Any other value is treated as a raw TCGC emitter name.                                                                              |
+| `language`            | string | Target SDK language for the language-neutral `list` shape. Known values: `java` (default), `csharp`. Any other value is treated as a raw TCGC emitter name. `revapi` and `tsp-ast-input` are Java-specific and always use the Java TCGC scope; non-Java values there are ignored with a warning.                                                   |
 | `namespace`           | string | Override for the generated SDK base namespace/package, e.g. `com.azure.ai.agents` (Java) or `Azure.AI.Projects.Agents` (.NET). When omitted, the client namespace resolved by TCGC (which honours `@@clientNamespace`) is used. Set this when the package comes from the language emitter's own `namespace` option instead of `@@clientNamespace`. |
 | `models-subpackage`   | string | Subpackage for public models/enums. Defaults to `models`. (Applies to `revapi`/`tsp-ast-input`; `list` uses no subpackage.)                                                                                                                                                                                                                        |
 | `internal-subpackage` | string | Subpackage for non-public (internal-access) types. Defaults to `implementation.models`.                                                                                                                                                                                                                                                            |
@@ -102,7 +101,7 @@ formats, see [Output shapes and formats](docs/advanced.md).
 ## Running against the Foundry spec
 
 The Foundry spec lives in the [`azure-rest-api-specs`](https://github.com/Azure/azure-rest-api-specs)
-repo. Its two Java SDK projects carry this emitter's options in their own
+repo. Its two Java SDK projects carry Java `tsp-ast-input` options in their own
 `tspconfig.yaml`:
 
 | Project                      | `tspconfig.yaml`                                            |
@@ -112,10 +111,11 @@ repo. Its two Java SDK projects carry this emitter's options in their own
 
 Each has an `options.typespec-extension-exporter` block (default output: the
 `tsp-ast-input` CSV the Java SDK consumes as
-`<library-module>/customizations/beta-annotations.csv`). That block is **inert**
-during a normal `tsp compile` — it only takes effect when the emitter is
-explicitly selected with `--emit typespec-extension-exporter`, so it never
-disrupts other contributors.
+`<library-module>/customizations/beta-annotations.csv`). The C# Foundry project
+can use `output-shape: list` to emit `list.yaml`. These blocks are **inert**
+during a normal `tsp compile` — they only take effect when the emitter is
+explicitly selected with `--emit typespec-extension-exporter`, so they never
+disrupt other contributors.
 
 ### One-time onboarding: make the emitter resolvable
 
@@ -170,7 +170,8 @@ node foundry/emit.mjs projects \
 ```
 
 (`FOUNDRY_DIR` can also be passed as `--foundry-dir <path>`; it must contain
-`src/sdk-java-azure-ai-<project>/client.tsp`. The helper writes the file
+`src/sdk-java-azure-ai-<project>/client.tsp`. The helper is Java-project focused
+and writes the file
 directly — no `typespec-extension-exporter/` subfolder — via the built-in
 `emitter-output-dir` option.)
 

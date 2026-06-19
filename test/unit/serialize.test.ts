@@ -85,6 +85,13 @@ describe("serializeCsv", () => {
     expect(lines[1]).toBe("class;Azure.AI.Agents.AgentDefinition");
     expect(lines[2]).toBe("field;Azure.AI.Agents.Tool::blobUrl");
   });
+
+  it("emits only the header for malformed list payloads", () => {
+    expect(serializeCsv([], "list")).toBe("type;name\n");
+    expect(serializeCsv({ class: ["A"], field: [5] }, "list")).toBe(
+      "type;name\n",
+    );
+  });
 });
 
 describe("serializePayload", () => {

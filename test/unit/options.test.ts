@@ -7,6 +7,7 @@ import {
   parseKeyFilter,
   parseKindFilter,
   resolveEmitterScope,
+  resolvesToJavaScope,
 } from "../../dist/src/options.js";
 
 describe("parseKindFilter", () => {
@@ -77,9 +78,10 @@ describe("findNonExtensionKeys", () => {
 });
 
 describe("resolveEmitterScope", () => {
-  it("defaults to the Java emitter scope when unset/empty", () => {
+  it("defaults to the Java emitter scope when unset/empty/blank", () => {
     expect(resolveEmitterScope(undefined)).toBe("@azure-tools/typespec-java");
     expect(resolveEmitterScope("")).toBe("@azure-tools/typespec-java");
+    expect(resolveEmitterScope("   ")).toBe("@azure-tools/typespec-java");
   });
 
   it("maps known languages to emitter names, case-insensitively", () => {
@@ -93,6 +95,19 @@ describe("resolveEmitterScope", () => {
     expect(resolveEmitterScope("@azure-tools/typespec-python")).toBe(
       "@azure-tools/typespec-python",
     );
+  });
+});
+
+describe("resolvesToJavaScope", () => {
+  it("accepts unset/blank/java values", () => {
+    expect(resolvesToJavaScope(undefined)).toBe(true);
+    expect(resolvesToJavaScope(" ")).toBe(true);
+    expect(resolvesToJavaScope("JAVA")).toBe(true);
+  });
+
+  it("rejects non-Java values", () => {
+    expect(resolvesToJavaScope("csharp")).toBe(false);
+    expect(resolvesToJavaScope("@azure-tools/typespec-python")).toBe(false);
   });
 });
 

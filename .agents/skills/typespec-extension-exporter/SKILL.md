@@ -10,26 +10,26 @@ A TypeSpec emitter (TypeSpec compiler v1.13) with four output shapes and JSON/YA
 - **`raw`** (default): every `@extension` decorator occurrence
   (from `@typespec/openapi`) with source locations.
 - **`revapi`**: a [revapi `differences`](https://revapi.org/revapi-basic-features/0.13.1/differences.html)
-  ignore list. Each `@extension`-marked beta entity becomes an `ignore` entry
-  matching its generated-SDK fully-qualified name.
+  ignore list. Java-specific: each `@extension`-marked beta entity becomes an
+  `ignore` entry matching its generated Java fully-qualified name.
 - **`tsp-ast-input`**: annotation-insertion requests for a
   downstream AST customization step. Each entry has `type` (`class` or
   `field`), `class_name`, `annotation_description`, and field entries also have
   `member_name` with the generated field/member name.
 - **`list`**: the beta `class`/`field` entries collapsed into two sorted,
-  de-duplicated lists named by their generated-SDK FQN (`namespace + "." +
-name`, no subpackage). `class` holds beta types (model/enum/union); `field`
-  holds beta properties on a non-beta container as `<ContainerFqn>::<propertyName>`.
+  de-duplicated lists named by their generated-SDK FQN (`<namespace>.<name>`,
+  no subpackage). `class` holds beta types (model/enum/union); `field` holds
+  beta properties on a non-beta container as `<ContainerFqn>::<propertyName>`.
   Like the Java shapes, properties of an already-beta container are omitted
   (covered by its `class` entry). Language-neutral — pair with `language`
   (built for the C# SDK, where the namespace comes from `@clientNamespace`).
 
 Names/packages come from TCGC (`@azure-tools/typespec-client-generator-core`).
-The `language` option selects the TCGC emitter scope (Java by default, or C#),
-so language-scoped `@clientName` renames, public/internal `access`, and
-`@@clientNamespace(..., "<lang>")` are honoured — the same model the target
-language emitter is built on. `revapi`, `tsp-ast-input`, and `list` are
-the **SDK output modes** (they build the TCGC model); `raw` walks the type graph.
+`revapi` and `tsp-ast-input` are Java-specific and always use the Java TCGC
+scope. The `list` shape uses the `language` option (Java by default, or C#) so
+language-scoped `@clientName` renames and `@@clientNamespace(..., "<lang>")`
+are honoured. `revapi`, `tsp-ast-input`, and `list` are the **SDK output modes**
+(they build the TCGC model); `raw` walks the type graph.
 
 The primary use case is exporting beta (`x-ms-foundry-meta`) Foundry entities
 for Azure SDK workflows — revapi suppressions and AST annotation customization
@@ -49,7 +49,7 @@ exist only in the source repo.
 | [src/lib.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/lib.ts)                   | `$lib` definition + options schema (`ExtensionEmitterOptions`)                      |
 | [src/options.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/options.ts)           | Filter parsing, SDK naming + emitter-scope (`resolveEmitterScope`) options          |
 | [src/collect-raw.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/collect-raw.ts)   | Raw `@extension` occurrence collection via the type graph                           |
-| [src/collect-beta.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/collect-beta.ts) | TCGC beta-entity collection (SDK output modes; scope from `language`)               |
+| [src/collect-beta.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/collect-beta.ts) | TCGC beta-entity collection (Java scope by default; `list` may pass another scope)  |
 | [src/transform.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/transform.ts)       | revapi + tsp-ast-input + list transforms and SDK FQN/text helpers                   |
 | [src/serialize.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/serialize.ts)       | JSON/YAML/CSV serialization                                                         |
 | [foundry/emit.mjs](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/foundry/emit.mjs)       | Cross-platform helper for emitting against a local spec checkout (source repo only) |
@@ -82,7 +82,7 @@ comma-separated strings.
 | `output-shape`        | `raw` \| `revapi` \| `tsp-ast-input` \| `list`  | `raw`                                              | Semantic output shape (see modes above).                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `output-format`       | `json` \| `yaml` \| `csv`                       | `json`                                             | Serialization format. CSV output uses `;` as the delimiter.                                                                                                                                                                                                                                                                                                                                                                                 |
 | `output-file`         | string                                          | `<shape>.<format>` (`extensions.<format>` for raw) | File name written into the emitter output dir. Defaults: `extensions.<format>` (raw), `revapi.<format>`, `tsp-ast-input.<format>`, `list.<format>`.                                                                                                                                                                                                                                                                                         |
-| `language`            | string (`java` \| `csharp` \| raw emitter name) | `java`                                             | SDK output modes only. Picks the TCGC emitter scope so language-scoped customizations (`@clientName(..., "<lang>")`, `@@clientNamespace(..., "<lang>")`) apply. `java`→`@azure-tools/typespec-java`, `csharp`→`@typespec/http-client-csharp`; any other value is used verbatim as the scope.                                                                                                                                                |
+| `language`            | string (`java` \| `csharp` \| raw emitter name) | `java`                                             | `list` shape only. Picks the TCGC emitter scope so language-scoped customizations (`@clientName(..., "<lang>")`, `@@clientNamespace(..., "<lang>")`) apply. `java`→`@azure-tools/typespec-java`, `csharp`→`@typespec/http-client-csharp`; any other value is used verbatim as the scope. `revapi`/`tsp-ast-input` are Java-specific and ignore non-Java values with a warning.                                                              |
 | `namespace`           | string                                          | TCGC client namespace                              | SDK output modes only. Override the generated SDK base namespace/package, e.g. `com.azure.ai.agents` (Java) or `Azure.AI.Projects.Agents` (.NET). **Set this when the package comes from the language emitter's own `namespace` option rather than `@@clientNamespace`** — the Java `projects`/`agents` projects have no `@@clientNamespace`, so they need it; the C# project resolves it natively from `@clientNamespace`, so it omits it. |
 | `models-subpackage`   | string                                          | `models`                                           | `revapi`/`tsp-ast-input` only. Subpackage for public types. (`list` uses no subpackage.)                                                                                                                                                                                                                                                                                                                                                    |
 | `internal-subpackage` | string                                          | `implementation.models`                            | `revapi`/`tsp-ast-input` only. Subpackage for non-public (internal `access`) types.                                                                                                                                                                                                                                                                                                                                                         |
