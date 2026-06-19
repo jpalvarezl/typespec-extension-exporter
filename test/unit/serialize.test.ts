@@ -86,10 +86,12 @@ describe("serializeCsv", () => {
     expect(lines[2]).toBe("field;Azure.AI.Agents.Tool::blobUrl");
   });
 
-  it("emits only the header for malformed list payloads", () => {
-    expect(serializeCsv([], "list")).toBe("type;name\n");
-    expect(serializeCsv({ class: ["A"], field: [5] }, "list")).toBe(
-      "type;name\n",
+  it("fails explicitly for malformed list payloads", () => {
+    expect(() => serializeCsv([], "list")).toThrow(
+      "Cannot serialize list output as CSV",
+    );
+    expect(() => serializeCsv({ class: ["A"], field: [5] }, "list")).toThrow(
+      "expected payload to be an object with string[] properties 'class' and 'field'",
     );
   });
 });

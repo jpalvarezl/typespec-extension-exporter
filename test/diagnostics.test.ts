@@ -23,6 +23,10 @@ async function diagnose(options: Record<string, unknown>) {
   return diagnostics;
 }
 
+async function diagnoseWithOutputs(options: Record<string, unknown>) {
+  return Tester.emit(EMITTER, options).compileAndDiagnose(SAMPLE);
+}
+
 describe("option diagnostics", () => {
   it("warns once per unknown kind", async () => {
     const diagnostics = await diagnose({ kinds: "model,bogus" });
@@ -67,8 +71,8 @@ describe("option diagnostics", () => {
     ).toHaveLength(2);
   });
 
-  it("warns when a non-Java language is supplied for Java-specific shapes", async () => {
-    const diagnostics = await diagnose({
+  it("errors and emits no output when a non-Java language is supplied for Java-specific shapes", async () => {
+    const [result, diagnostics] = await diagnoseWithOutputs({
       keys: "x-a",
       language: "csharp",
       "output-shape": "revapi",
@@ -77,9 +81,10 @@ describe("option diagnostics", () => {
     expectDiagnostics(diagnostics, [
       {
         code: "typespec-extension-exporter/non-java-language-for-java-shape",
-        severity: "warning",
-        message: /language.*csharp.*ignored.*revapi.*Java-specific/,
+        severity: "error",
+        message: /language.*csharp.*not supported.*revapi.*Java-specific/,
       },
     ]);
+    expect(result.outputs).toEqual({});
   });
 });

@@ -56,7 +56,9 @@ function isListShape(payload: unknown): payload is ListShape {
 /** Flatten the `list` object into `{ type, name }` rows (classes then fields). */
 function listShapeToRows(payload: unknown): Array<Record<string, string>> {
   if (!isListShape(payload)) {
-    return [];
+    throw new TypeError(
+      "Cannot serialize list output as CSV: expected payload to be an object with string[] properties 'class' and 'field'.",
+    );
   }
   return [
     ...payload.class.map((name) => ({ type: "class", name })),

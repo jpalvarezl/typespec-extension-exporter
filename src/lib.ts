@@ -41,8 +41,8 @@ export interface ExtensionEmitterOptions {
   /**
    * Target SDK language for the language-neutral `list` shape. Known values:
    * "java" (default), "csharp". Any other value is treated as a raw TCGC
-   * emitter name. `revapi` and `tsp-ast-input` are Java-specific and always use
-   * the Java TCGC scope.
+   * emitter name. `revapi` and `tsp-ast-input` are Java-specific; non-Java
+   * values for those shapes are an error.
    */
   language?: string;
   /**
@@ -102,9 +102,9 @@ export const $lib = createTypeSpecLibrary({
       },
     },
     "non-java-language-for-java-shape": {
-      severity: "warning",
+      severity: "error",
       messages: {
-        default: paramMessage`The 'language' option value '${"language"}' is ignored for output-shape '${"shape"}'; that shape is Java-specific. Use output-shape 'list' for language-neutral output.`,
+        default: paramMessage`The 'language' option value '${"language"}' is not supported for output-shape '${"shape"}'; that shape is Java-specific. Use output-shape 'list' for language-neutral output.`,
       },
     },
   },

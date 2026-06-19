@@ -52,21 +52,6 @@ const JAVA_OPTIONS = {
   namespace: "com.azure.ai.agents",
 };
 
-const LANGUAGE_SCOPED_NAME_SAMPLE = `
-  @service(#{ title: "Agents" })
-  namespace Agents;
-
-  @clientName("JavaAgent", "java")
-  @clientName("CSharpAgent", "csharp")
-  @extension("x-ms-foundry-meta", #{ required_previews: #["HostedAgents=V1Preview"] })
-  model AgentDefinition {
-    name: string;
-  }
-
-  @route("/get")
-  op get(): AgentDefinition;
-`;
-
 describe("revapi output shape", () => {
   it("maps beta entities to revapi ignore entries named by their Java FQN", async () => {
     const entries = await emitJsonTcgc<RevapiEntry[]>(TcgcTester, SAMPLE, {
@@ -122,22 +107,6 @@ describe("revapi output shape", () => {
     expect(
       entries.every((e) => e.justification.startsWith("Beta feature.")),
     ).toBe(true);
-  });
-
-  it("stays on the Java TCGC scope even if a non-Java language is supplied", async () => {
-    const entries = await emitJsonTcgc<RevapiEntry[]>(
-      TcgcTester,
-      LANGUAGE_SCOPED_NAME_SAMPLE,
-      {
-        ...JAVA_OPTIONS,
-        "output-shape": "revapi",
-        language: "csharp",
-      },
-    );
-
-    expect(entries).toHaveLength(1);
-    expect(entries[0].old).toContain("JavaAgent");
-    expect(entries[0].old).not.toContain("CSharpAgent");
   });
 
   it("defaults the file name to revapi.json", async () => {

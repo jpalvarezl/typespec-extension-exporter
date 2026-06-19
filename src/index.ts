@@ -63,6 +63,7 @@ export async function $onEmit(
         format: { language, shape },
         target: NoTarget,
       });
+      return;
     }
     // These outputs are intentionally Java-specific: revapi uses `java\\..*`
     // codes and tsp-ast-input feeds Java AST customizations. Keep their TCGC
