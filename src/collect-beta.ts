@@ -8,18 +8,21 @@ import type { ExtensionEmitterOptions } from "./lib.js";
 import { getDecorators, readExtension } from "./extension.js";
 import type { BetaProperty, BetaType, CollectedBeta } from "./types.js";
 
+/** Default TCGC emitter scope (Java). */
+export const DEFAULT_EMITTER_SCOPE = "@azure-tools/typespec-java";
+
 /** Collect beta types and properties from the TCGC SDK package. */
 export async function collectBetaFromTcgc(
   context: EmitContext<ExtensionEmitterOptions>,
   keyFilter: Set<string> | undefined,
+  emitterScope: string = DEFAULT_EMITTER_SCOPE,
 ): Promise<CollectedBeta> {
-  // Use the Java emitter scope so `@clientName(..., "java")` and
-  // `@@clientNamespace(..., "java")` customizations are applied. TCGC derives
-  // the language ("java") from this emitter name.
-  const sdkContext = await createSdkContext(
-    context,
-    "@azure-tools/typespec-java",
-  );
+  // Use a language emitter scope so language-scoped customizations
+  // (`@clientName(..., "<lang>")`, `@@clientNamespace(..., "<lang>")`) are
+  // applied. TCGC derives the language from this emitter name, e.g.
+  // `@azure-tools/typespec-java` -> java, `@typespec/http-client-csharp` ->
+  // csharp.
+  const sdkContext = await createSdkContext(context, emitterScope);
   const pkg = sdkContext.sdkPackage;
 
   const types: BetaType[] = [];

@@ -19,6 +19,18 @@ describe("getDefaultOutputFile", () => {
       "tsp-ast-input.yaml",
     );
   });
+
+  it("names beta-classes output beta-classes.<ext>", () => {
+    expect(getDefaultOutputFile("beta-classes", "json")).toBe(
+      "beta-classes.json",
+    );
+    expect(getDefaultOutputFile("beta-classes", "yaml")).toBe(
+      "beta-classes.yaml",
+    );
+    expect(getDefaultOutputFile("beta-classes", "csv")).toBe(
+      "beta-classes.csv",
+    );
+  });
 });
 
 describe("stringifyCsvValue", () => {
@@ -64,6 +76,20 @@ describe("serializeCsv", () => {
       "key;value;targetKind;targetName;namespace;file;line;column",
     );
     expect(lines[1]).toBe("x-a;v;Model;S.M;S;/main.tsp;1;2");
+  });
+
+  it("emits type;name rows (classes then properties) for the beta-classes shape", () => {
+    const csv = serializeCsv(
+      {
+        beta_classes: ["Azure.AI.Agents.AgentDefinition"],
+        beta_class_properties: ["Azure.AI.Agents.Tool::blobUrl"],
+      },
+      "beta-classes",
+    );
+    const lines = csv.trimEnd().split("\n");
+    expect(lines[0]).toBe("type;name");
+    expect(lines[1]).toBe("class;Azure.AI.Agents.AgentDefinition");
+    expect(lines[2]).toBe("property;Azure.AI.Agents.Tool::blobUrl");
   });
 });
 

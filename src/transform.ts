@@ -4,7 +4,12 @@ import {
   getJavaNameOptions,
   type JavaNameOptions,
 } from "./options.js";
-import type { CollectedBeta, RevapiEntry, TspAstInputEntry } from "./types.js";
+import type {
+  BetaClasses,
+  CollectedBeta,
+  RevapiEntry,
+  TspAstInputEntry,
+} from "./types.js";
 
 /**
  * revapi difference `code` applied to every generated entry. The `java\..*`
@@ -76,6 +81,57 @@ export function buildAnnotationDescription(
 interface PreviewAccumulator<T> {
   entry: T;
   previews: Set<string>;
+}
+
+/** Build the simple class fully-qualified name (base namespace + type name).
+ *
+ * Unlike {@link getJavaTypeFqn}, this does not insert a models/internal
+ * subpackage: it targets languages (e.g. .NET) where generated types live
+ * directly under the client namespace from `@@clientNamespace`. */
+export function getClassFqn(
+  entity: { name: string; namespace: string },
+  options: JavaNameOptions,
+): string {
+  const base = options.namespaceOverride ?? entity.namespace;
+  return [base, entity.name]
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join(".");
+}
+
+/**
+ * Transform collected beta entities into the `beta-classes` output: two
+ * sorted, de-duplicated lists of generated-SDK fully-qualified names — one for
+ * beta type-level entities (`beta_classes`) and one for beta properties on
+ * non-beta containers (`beta_class_properties`, as `<ContainerFqn>::<member>`).
+ *
+ * Properties of a beta container are omitted (covered by the container's own
+ * class entry), matching the revapi/tsp-ast-input shapes. Neither list uses a
+ * models/internal subpackage; the FQN is the base namespace + name.
+ */
+export function toBetaClasses(
+  collected: CollectedBeta,
+  options: ExtensionEmitterOptions,
+): BetaClasses {
+  const javaNames = getJavaNameOptions(options);
+  const classes = new Set<string>();
+  for (const type of collected.types) {
+    classes.add(getClassFqn(type, javaNames));
+  }
+  const properties = new Set<string>();
+  for (const prop of collected.properties) {
+    const containerFqn = getClassFqn(
+      { name: prop.containerName, namespace: prop.containerNamespace },
+      javaNames,
+    );
+    properties.add(`${containerFqn}::${prop.propertyName}`);
+  }
+  const sorted = (values: Set<string>): string[] =>
+    [...values].sort((a, b) => a.localeCompare(b));
+  return {
+    beta_classes: sorted(classes),
+    beta_class_properties: sorted(properties),
+  };
 }
 
 /**

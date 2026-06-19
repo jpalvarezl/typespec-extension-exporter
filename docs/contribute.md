@@ -90,8 +90,8 @@ come from the spec's committed `tspconfig.yaml`. See the
 
 1. Add an `options.typespec-extension-exporter` block to that project's
    `tspconfig.yaml` in the spec repo (`keys`, `output-shape`, `output-format`,
-   `output-file`, and `java-namespace` matching the `typespec-java` emitter's
-   `namespace`).
+   `output-file`, and `namespace` matching the language emitter's `namespace`
+   when it isn't set via `@@clientNamespace`).
 2. Add the project to the `PROJECTS` map in
    [`foundry/emit.mjs`](../foundry/emit.mjs) and, optionally, a
    `foundry:emit:<name>` npm script.

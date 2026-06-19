@@ -9,12 +9,18 @@ import {
   findUnknownKinds,
   parseKeyFilter,
   parseKindFilter,
+  resolveEmitterScope,
 } from "./options.js";
 import { getDefaultOutputFile, serializePayload } from "./serialize.js";
-import { toRevapiEntries, toTspAstInputEntries } from "./transform.js";
+import {
+  toBetaClasses,
+  toRevapiEntries,
+  toTspAstInputEntries,
+} from "./transform.js";
 
 export { $lib } from "./lib.js";
 export type {
+  BetaClasses,
   ExtensionOccurrence,
   RevapiEntry,
   TspAstInputEntry,
@@ -48,12 +54,19 @@ export async function $onEmit(
   const format = options["output-format"] ?? "json";
 
   let payload: unknown;
-  if (shape === "revapi" || shape === "tsp-ast-input") {
-    const collected = await collectBetaFromTcgc(context, keyFilter);
+  if (
+    shape === "revapi" ||
+    shape === "tsp-ast-input" ||
+    shape === "beta-classes"
+  ) {
+    const scope = resolveEmitterScope(options.language);
+    const collected = await collectBetaFromTcgc(context, keyFilter, scope);
     payload =
       shape === "revapi"
         ? toRevapiEntries(collected, options)
-        : toTspAstInputEntries(collected, options);
+        : shape === "tsp-ast-input"
+          ? toTspAstInputEntries(collected, options)
+          : toBetaClasses(collected, options);
   } else {
     payload = collectRawOccurrences(context, kindFilter, keyFilter);
   }

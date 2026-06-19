@@ -73,6 +73,25 @@ export function parseKeyFilter(
   return values.length > 0 ? new Set(values) : undefined;
 }
 
+/** Known SDK language → TCGC emitter scope. */
+export const EMITTER_SCOPES: Readonly<Record<string, string>> = {
+  java: "@azure-tools/typespec-java",
+  csharp: "@typespec/http-client-csharp",
+};
+
+/**
+ * Resolve the TCGC emitter scope from the `language` option. Known languages
+ * map to their emitter package name; any other value is passed through verbatim
+ * (so a full emitter name can be supplied). Defaults to Java.
+ */
+export function resolveEmitterScope(language: string | undefined): string {
+  if (!language) {
+    return EMITTER_SCOPES.java;
+  }
+  const key = language.trim().toLowerCase();
+  return EMITTER_SCOPES[key] ?? language.trim();
+}
+
 /** Shared Java naming options for outputs based on generated Java symbols. */
 export interface JavaNameOptions {
   namespaceOverride?: string;
@@ -85,7 +104,7 @@ export function getJavaNameOptions(
   options: ExtensionEmitterOptions,
 ): JavaNameOptions {
   return {
-    namespaceOverride: options["java-namespace"],
+    namespaceOverride: options["namespace"],
     modelsSubpackage: options["models-subpackage"] ?? "models",
     internalSubpackage:
       options["internal-subpackage"] ?? "implementation.models",

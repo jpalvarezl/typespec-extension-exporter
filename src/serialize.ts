@@ -1,5 +1,5 @@
 import { stringify as stringifyYaml } from "yaml";
-import type { OutputFormat, OutputShape } from "./types.js";
+import type { BetaClasses, OutputFormat, OutputShape } from "./types.js";
 
 export function getDefaultOutputFile(
   shape: OutputShape,
@@ -10,7 +10,9 @@ export function getDefaultOutputFile(
       ? "extensions"
       : shape === "revapi"
         ? "revapi"
-        : "tsp-ast-input";
+        : shape === "beta-classes"
+          ? "beta-classes"
+          : "tsp-ast-input";
   const extension = format === "yaml" ? "yaml" : format;
   return `${baseName}.${extension}`;
 }
@@ -32,7 +34,22 @@ function getCsvHeaders(shape: OutputShape): string[] {
       return ["ignore", "regex", "code", "old", "justification"];
     case "tsp-ast-input":
       return ["type", "class_name", "annotation_description", "member_name"];
+    case "beta-classes":
+      return ["type", "name"];
   }
+}
+
+/** Flatten the beta-classes object payload into `{ type, name }` CSV rows. */
+function betaClassesToRows(
+  payload: BetaClasses,
+): Array<Record<string, string>> {
+  return [
+    ...payload.beta_classes.map((name) => ({ type: "class", name })),
+    ...payload.beta_class_properties.map((name) => ({
+      type: "property",
+      name,
+    })),
+  ];
 }
 
 export function stringifyCsvValue(value: unknown): string {
@@ -49,7 +66,12 @@ export function stringifyCsvValue(value: unknown): string {
 
 export function serializeCsv(payload: unknown, shape: OutputShape): string {
   const headers = getCsvHeaders(shape);
-  const rows = Array.isArray(payload) ? payload : [];
+  const rows =
+    shape === "beta-classes"
+      ? betaClassesToRows(payload as BetaClasses)
+      : Array.isArray(payload)
+        ? payload
+        : [];
   const lines = [headers.join(";")];
   for (const row of rows) {
     const record = row as Record<string, unknown>;

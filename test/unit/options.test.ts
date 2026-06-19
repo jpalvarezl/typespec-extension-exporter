@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   findNonExtensionKeys,
   findUnknownKinds,
+  getJavaNameOptions,
   normalizeKind,
   parseKeyFilter,
   parseKindFilter,
+  resolveEmitterScope,
 } from "../../dist/src/options.js";
 
 describe("parseKindFilter", () => {
@@ -71,5 +73,37 @@ describe("findNonExtensionKeys", () => {
 
   it("flags only values that do not start with x-", () => {
     expect(findNonExtensionKeys("x-a, ms-meta , x-b")).toEqual(["ms-meta"]);
+  });
+});
+
+describe("resolveEmitterScope", () => {
+  it("defaults to the Java emitter scope when unset/empty", () => {
+    expect(resolveEmitterScope(undefined)).toBe("@azure-tools/typespec-java");
+    expect(resolveEmitterScope("")).toBe("@azure-tools/typespec-java");
+  });
+
+  it("maps known languages to emitter names, case-insensitively", () => {
+    expect(resolveEmitterScope("java")).toBe("@azure-tools/typespec-java");
+    expect(resolveEmitterScope(" CSharp ")).toBe(
+      "@typespec/http-client-csharp",
+    );
+  });
+
+  it("passes an unknown value through as a raw emitter name", () => {
+    expect(resolveEmitterScope("@azure-tools/typespec-python")).toBe(
+      "@azure-tools/typespec-python",
+    );
+  });
+});
+
+describe("getJavaNameOptions namespace override", () => {
+  it("uses `namespace` as the override", () => {
+    expect(
+      getJavaNameOptions({ namespace: "Azure.AI.Agents" }).namespaceOverride,
+    ).toBe("Azure.AI.Agents");
+  });
+
+  it("leaves the override undefined when unset", () => {
+    expect(getJavaNameOptions({}).namespaceOverride).toBeUndefined();
   });
 });
