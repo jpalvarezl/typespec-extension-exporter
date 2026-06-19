@@ -26,16 +26,17 @@ export interface ExtensionEmitterOptions {
    *   to its Java fully-qualified name.
    * - "tsp-ast-input": annotation insertion requests for downstream AST
    *   customization.
-   * - "beta-classes": a flat list of beta classes named by their generated SDK
-   *   fully-qualified name (language-neutral; pair with `language`).
+   * - "list": the class/field entries collapsed into two lists (`class` FQNs
+   *   and `field` references), named by their generated SDK fully-qualified
+   *   name (language-neutral; pair with `language`).
    */
-  "output-shape"?: "raw" | "revapi" | "tsp-ast-input" | "beta-classes";
+  "output-shape"?: "raw" | "revapi" | "tsp-ast-input" | "list";
   /** Output serialization format. Defaults to "json". */
   "output-format"?: "json" | "yaml" | "csv";
   /** Name of the output file to write into the emitter output directory. */
   "output-file"?: string;
 
-  // --- SDK-output options (used when output-shape is "revapi", "tsp-ast-input", or "beta-classes") ---
+  // --- SDK-output options (used when output-shape is "revapi", "tsp-ast-input", or "list") ---
 
   /**
    * Target SDK language, used to pick the TCGC emitter scope so language-scoped
@@ -67,7 +68,7 @@ const EmitterOptionsSchema: JSONSchemaType<ExtensionEmitterOptions> = {
     kinds: { type: "string", nullable: true },
     "output-shape": {
       type: "string",
-      enum: ["raw", "revapi", "tsp-ast-input", "beta-classes"],
+      enum: ["raw", "revapi", "tsp-ast-input", "list"],
       nullable: true,
     },
     "output-format": {

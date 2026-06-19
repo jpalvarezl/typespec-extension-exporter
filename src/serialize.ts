@@ -1,5 +1,5 @@
 import { stringify as stringifyYaml } from "yaml";
-import type { BetaClasses, OutputFormat, OutputShape } from "./types.js";
+import type { ListShape, OutputFormat, OutputShape } from "./types.js";
 
 export function getDefaultOutputFile(
   shape: OutputShape,
@@ -10,8 +10,8 @@ export function getDefaultOutputFile(
       ? "extensions"
       : shape === "revapi"
         ? "revapi"
-        : shape === "beta-classes"
-          ? "beta-classes"
+        : shape === "list"
+          ? "list"
           : "tsp-ast-input";
   const extension = format === "yaml" ? "yaml" : format;
   return `${baseName}.${extension}`;
@@ -34,21 +34,16 @@ function getCsvHeaders(shape: OutputShape): string[] {
       return ["ignore", "regex", "code", "old", "justification"];
     case "tsp-ast-input":
       return ["type", "class_name", "annotation_description", "member_name"];
-    case "beta-classes":
+    case "list":
       return ["type", "name"];
   }
 }
 
-/** Flatten the beta-classes object payload into `{ type, name }` CSV rows. */
-function betaClassesToRows(
-  payload: BetaClasses,
-): Array<Record<string, string>> {
+/** Flatten the `list` object into `{ type, name }` rows (classes then fields). */
+function listShapeToRows(payload: ListShape): Array<Record<string, string>> {
   return [
-    ...payload.beta_classes.map((name) => ({ type: "class", name })),
-    ...payload.beta_class_properties.map((name) => ({
-      type: "property",
-      name,
-    })),
+    ...payload.class.map((name) => ({ type: "class", name })),
+    ...payload.field.map((name) => ({ type: "field", name })),
   ];
 }
 
@@ -67,8 +62,8 @@ export function stringifyCsvValue(value: unknown): string {
 export function serializeCsv(payload: unknown, shape: OutputShape): string {
   const headers = getCsvHeaders(shape);
   const rows =
-    shape === "beta-classes"
-      ? betaClassesToRows(payload as BetaClasses)
+    shape === "list"
+      ? listShapeToRows(payload as ListShape)
       : Array.isArray(payload)
         ? payload
         : [];

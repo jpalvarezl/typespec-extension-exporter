@@ -37,7 +37,7 @@ tsp compile <path> --emit typespec-extension-exporter \
   --option "typespec-extension-exporter.kinds=model,field"
 ```
 
-## SDK output modes (`revapi`, `tsp-ast-input`, and `beta-classes`)
+## SDK output modes (`revapi`, `tsp-ast-input`, and `list`)
 
 In all SDK output modes the emitter builds the TypeSpec Client Generator Core
 (TCGC) SDK model the same way the target language emitter does, so each beta
@@ -47,14 +47,14 @@ emitter name), so language-scoped customizations apply:
 
 - `@clientName` / `@@clientName(..., "<lang>")` renames are applied.
 - The public/internal `access` decides the `models` vs `implementation.models`
-  subpackage (for `revapi`/`tsp-ast-input`; `beta-classes` uses no subpackage).
+  subpackage (for `revapi`/`tsp-ast-input`; `list` uses no subpackage).
 - Anonymous models (e.g. request bodies) have no distinct public type and
   are skipped — their beta members are covered by the named models they
   originate from.
 
 The base namespace/package is taken from TCGC's resolved client namespace, or
 overridden with the `namespace` option. See the
-[SDK-output options](../README.md#sdk-output-options-used-when-output-shape-is-revapi-tsp-ast-input-or-beta-classes).
+[SDK-output options](../README.md#sdk-output-options-used-when-output-shape-is-revapi-tsp-ast-input-or-list).
 
 ### `revapi`
 
@@ -101,30 +101,30 @@ The `annotation_description` starts from the `justification` option (default
 `Preview API.`) and appends the gating preview feature keys parsed from the
 `@extension` value's `required_previews`/`conditional_previews` arrays.
 
-### `beta-classes`
+### `list`
 
-Two sorted, de-duplicated lists of beta entities named by their generated-SDK
-fully-qualified name — language neutral, so pair it with `language`:
+The beta `class`/`field` entries (as seen in the `csv`/`tsp-ast-input` shapes)
+collapsed into two sorted, de-duplicated lists — language neutral, so pair it
+with `language`:
 
-- `beta_classes` — the **type-level** beta entities (models, enums, unions).
-- `beta_class_properties` — beta **properties** declared on a non-beta
-  container, as `<ContainerFqn>::<propertyName>`. Properties of an
-  already-beta container are omitted (covered by the container's class entry),
-  exactly like `revapi`/`tsp-ast-input`.
+- `class` — generated-SDK FQNs of the **type-level** beta entities (models,
+  enums, unions).
+- `field` — beta **properties** declared on a non-beta container, as
+  `<ContainerFqn>::<propertyName>`. Properties of an already-beta container are
+  omitted (covered by its `class` entry), exactly like `revapi`/`tsp-ast-input`.
 
 Unlike `revapi`/`tsp-ast-input`, the FQN is just `namespace + "." + name` (no
 `models`/`implementation.models` subpackage):
 
 ```yaml
-beta_classes:
+class:
   - Azure.AI.Projects.Agents.AgentDefinition
   - Azure.AI.Projects.Agents.WorkflowAgentDefinition
-beta_class_properties:
+field:
   - Azure.AI.Projects.Agents.SomeModel::someBetaProperty
 ```
 
-(CSV serialization flattens these into `type;name` rows, with `type` of `class`
-or `property`.)
+(CSV serialization writes the same data flattened to `type;name` rows.)
 
 For C# the namespace is resolved natively from the spec's `@clientNamespace`
 via the csharp TCGC scope, so no `namespace` override is needed; for Java the
@@ -143,6 +143,6 @@ set `namespace` to match.
 
 The default output file name follows the shape and format:
 `extensions.<format>` (raw), `revapi.<format>` (revapi),
-`tsp-ast-input.<format>` (tsp-ast-input), or `beta-classes.<format>`
-(beta-classes). Override it with `output-file`, or redirect the whole output
+`tsp-ast-input.<format>` (tsp-ast-input), or `list.<format>`
+(list). Override it with `output-file`, or redirect the whole output
 directory with the built-in `emitter-output-dir` option.

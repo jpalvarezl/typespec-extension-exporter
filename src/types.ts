@@ -29,16 +29,14 @@ export interface RevapiEntry {
   justification: string;
 }
 
-/** The `beta-classes` output: beta type FQNs and beta property references.
- *
- * `beta_class_properties` entries are `<ContainerFqn>::<propertyName>` for beta
- * properties declared on a non-beta container (properties of a beta container
- * are covered by the container's own `beta_classes` entry). */
-export interface BetaClasses {
-  /** Sorted, de-duplicated generated-SDK FQNs of beta type-level entities, e.g. "Azure.AI.Projects.Agents.AgentObject". */
-  beta_classes: string[];
-  /** Sorted, de-duplicated "ContainerFqn::propertyName" of beta properties on non-beta containers. */
-  beta_class_properties: string[];
+/** The `list` output: the class/field entries (as seen in the csv /
+ * tsp-ast-input shapes) collapsed into two sorted, de-duplicated lists.
+ * `class` holds beta type-level FQNs (`<namespace>.<Name>`); `field` holds beta
+ * property references on non-beta containers (`<ContainerFqn>::<propertyName>`).
+ * Neither carries a models/internal subpackage. */
+export interface ListShape {
+  class: string[];
+  field: string[];
 }
 
 /** A single annotation-insertion request for downstream AST customization. */

@@ -5,7 +5,7 @@ import {
   escapeRegExp,
   getClassFqn,
   getJavaTypeFqn,
-  toBetaClasses,
+  toListShape,
   toPascalCase,
   toRevapiEntries,
   toTspAstInputEntries,
@@ -198,19 +198,18 @@ describe("toTspAstInputEntries", () => {
   });
 });
 
-describe("toBetaClasses", () => {
-  it("lists beta types in beta_classes and beta props in beta_class_properties, without a subpackage", () => {
-    const result = toBetaClasses(COLLECTED, {});
-    // Class names carry no models/internal subpackage (namespace + name only);
-    // Tool::blobUrl is a beta property on a non-beta container, so it surfaces
-    // under beta_class_properties rather than being dropped.
+describe("toListShape", () => {
+  it("collapses beta types into `class` and beta props into `field`, without a subpackage", () => {
+    const result = toListShape(COLLECTED, {});
+    // FQNs carry no models/internal subpackage; Tool::blobUrl is a beta
+    // property on the non-beta Tool, so it lands under `field`.
     expect(result).toEqual({
-      beta_classes: ["com.azure.ai.agents.AgentDefinition"],
-      beta_class_properties: ["com.azure.ai.agents.Tool::blobUrl"],
+      class: ["com.azure.ai.agents.AgentDefinition"],
+      field: ["com.azure.ai.agents.Tool::blobUrl"],
     });
   });
 
-  it("sorts and de-duplicates repeated classes and properties", () => {
+  it("sorts and de-duplicates each list", () => {
     const collected: CollectedBeta = {
       types: [
         { ...COLLECTED.types[0], name: "Zeta" },
@@ -223,10 +222,10 @@ describe("toBetaClasses", () => {
         { ...COLLECTED.properties[0], propertyName: "first" },
       ],
     };
-    const result = toBetaClasses(collected, {});
+    const result = toListShape(collected, {});
     expect(result).toEqual({
-      beta_classes: ["com.azure.ai.agents.Alpha", "com.azure.ai.agents.Zeta"],
-      beta_class_properties: [
+      class: ["com.azure.ai.agents.Alpha", "com.azure.ai.agents.Zeta"],
+      field: [
         "com.azure.ai.agents.Tool::first",
         "com.azure.ai.agents.Tool::second",
       ],
@@ -234,10 +233,10 @@ describe("toBetaClasses", () => {
   });
 
   it("applies the namespace override to both lists", () => {
-    const result = toBetaClasses(COLLECTED, { namespace: "Contoso.Ai" });
+    const result = toListShape(COLLECTED, { namespace: "Contoso.Ai" });
     expect(result).toEqual({
-      beta_classes: ["Contoso.Ai.AgentDefinition"],
-      beta_class_properties: ["Contoso.Ai.Tool::blobUrl"],
+      class: ["Contoso.Ai.AgentDefinition"],
+      field: ["Contoso.Ai.Tool::blobUrl"],
     });
   });
 });

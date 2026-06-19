@@ -5,8 +5,8 @@ import {
   type JavaNameOptions,
 } from "./options.js";
 import type {
-  BetaClasses,
   CollectedBeta,
+  ListShape,
   RevapiEntry,
   TspAstInputEntry,
 } from "./types.js";
@@ -100,38 +100,33 @@ export function getClassFqn(
 }
 
 /**
- * Transform collected beta entities into the `beta-classes` output: two
- * sorted, de-duplicated lists of generated-SDK fully-qualified names — one for
- * beta type-level entities (`beta_classes`) and one for beta properties on
- * non-beta containers (`beta_class_properties`, as `<ContainerFqn>::<member>`).
- *
- * Properties of a beta container are omitted (covered by the container's own
- * class entry), matching the revapi/tsp-ast-input shapes. Neither list uses a
- * models/internal subpackage; the FQN is the base namespace + name.
+ * Transform collected beta entities into the `list` output: the class/field
+ * entries (as seen in the csv/tsp-ast-input shapes) collapsed into two sorted,
+ * de-duplicated lists. `class` holds beta type-level FQNs; `field` holds beta
+ * property references (`<ContainerFqn>::<propertyName>`) on non-beta
+ * containers. Properties of a beta container are omitted (covered by the
+ * container's class entry). The FQN carries no models/internal subpackage.
  */
-export function toBetaClasses(
+export function toListShape(
   collected: CollectedBeta,
   options: ExtensionEmitterOptions,
-): BetaClasses {
+): ListShape {
   const javaNames = getJavaNameOptions(options);
   const classes = new Set<string>();
   for (const type of collected.types) {
     classes.add(getClassFqn(type, javaNames));
   }
-  const properties = new Set<string>();
+  const fields = new Set<string>();
   for (const prop of collected.properties) {
     const containerFqn = getClassFqn(
       { name: prop.containerName, namespace: prop.containerNamespace },
       javaNames,
     );
-    properties.add(`${containerFqn}::${prop.propertyName}`);
+    fields.add(`${containerFqn}::${prop.propertyName}`);
   }
   const sorted = (values: Set<string>): string[] =>
     [...values].sort((a, b) => a.localeCompare(b));
-  return {
-    beta_classes: sorted(classes),
-    beta_class_properties: sorted(properties),
-  };
+  return { class: sorted(classes), field: sorted(fields) };
 }
 
 /**

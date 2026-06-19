@@ -13,15 +13,15 @@ import {
 } from "./options.js";
 import { getDefaultOutputFile, serializePayload } from "./serialize.js";
 import {
-  toBetaClasses,
+  toListShape,
   toRevapiEntries,
   toTspAstInputEntries,
 } from "./transform.js";
 
 export { $lib } from "./lib.js";
 export type {
-  BetaClasses,
   ExtensionOccurrence,
+  ListShape,
   RevapiEntry,
   TspAstInputEntry,
 } from "./types.js";
@@ -54,11 +54,7 @@ export async function $onEmit(
   const format = options["output-format"] ?? "json";
 
   let payload: unknown;
-  if (
-    shape === "revapi" ||
-    shape === "tsp-ast-input" ||
-    shape === "beta-classes"
-  ) {
+  if (shape === "revapi" || shape === "tsp-ast-input" || shape === "list") {
     const scope = resolveEmitterScope(options.language);
     const collected = await collectBetaFromTcgc(context, keyFilter, scope);
     payload =
@@ -66,7 +62,7 @@ export async function $onEmit(
         ? toRevapiEntries(collected, options)
         : shape === "tsp-ast-input"
           ? toTspAstInputEntries(collected, options)
-          : toBetaClasses(collected, options);
+          : toListShape(collected, options);
   } else {
     payload = collectRawOccurrences(context, kindFilter, keyFilter);
   }
