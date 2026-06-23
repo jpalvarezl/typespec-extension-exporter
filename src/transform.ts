@@ -2,9 +2,16 @@ import type { ExtensionEmitterOptions } from "./lib.js";
 import {
   getBaseAnnotationDescription,
   getJavaNameOptions,
+  getSdkNameOptions,
   type JavaNameOptions,
+  type SdkNameOptions,
 } from "./options.js";
-import type { CollectedBeta, RevapiEntry, TspAstInputEntry } from "./types.js";
+import type {
+  CollectedBeta,
+  ListShape,
+  RevapiEntry,
+  TspAstInputEntry,
+} from "./types.js";
 
 /**
  * revapi difference `code` applied to every generated entry. The `java\..*`
@@ -76,6 +83,52 @@ export function buildAnnotationDescription(
 interface PreviewAccumulator<T> {
   entry: T;
   previews: Set<string>;
+}
+
+/** Build the simple class fully-qualified name (base namespace + type name).
+ *
+ * Unlike {@link getJavaTypeFqn}, this does not insert a models/internal
+ * subpackage: it targets languages (e.g. .NET) where generated types live
+ * directly under the client namespace from `@@clientNamespace`. */
+export function getClassFqn(
+  entity: { name: string; namespace: string },
+  options: SdkNameOptions,
+): string {
+  const base = options.namespaceOverride ?? entity.namespace;
+  return [base, entity.name]
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join(".");
+}
+
+/**
+ * Transform collected beta entities into the `list` output: the class/field
+ * entries (as seen in the csv/tsp-ast-input shapes) collapsed into two sorted,
+ * de-duplicated lists. `class` holds beta type-level FQNs; `field` holds beta
+ * property references (`<ContainerFqn>::<propertyName>`) on non-beta
+ * containers. Properties of a beta container are omitted (covered by the
+ * container's class entry). The FQN carries no models/internal subpackage.
+ */
+export function toListShape(
+  collected: CollectedBeta,
+  options: ExtensionEmitterOptions,
+): ListShape {
+  const sdkNames = getSdkNameOptions(options);
+  const classes = new Set<string>();
+  for (const type of collected.types) {
+    classes.add(getClassFqn(type, sdkNames));
+  }
+  const fields = new Set<string>();
+  for (const prop of collected.properties) {
+    const containerFqn = getClassFqn(
+      { name: prop.containerName, namespace: prop.containerNamespace },
+      sdkNames,
+    );
+    fields.add(`${containerFqn}::${prop.propertyName}`);
+  }
+  const sorted = (values: Set<string>): string[] =>
+    [...values].sort((a, b) => a.localeCompare(b));
+  return { class: sorted(classes), field: sorted(fields) };
 }
 
 /**

@@ -3,7 +3,9 @@ import {
   buildAnnotationDescription,
   collectPreviews,
   escapeRegExp,
+  getClassFqn,
   getJavaTypeFqn,
+  toListShape,
   toPascalCase,
   toRevapiEntries,
   toTspAstInputEntries,
@@ -58,6 +60,29 @@ describe("getJavaTypeFqn", () => {
       { ...JAVA_NAMES, namespaceOverride: "com.contoso" },
     );
     expect(fqn).toBe("com.contoso.models.Widget");
+  });
+});
+
+describe("getClassFqn", () => {
+  it("joins namespace and name without inserting a subpackage", () => {
+    expect(
+      getClassFqn({ name: "Widget", namespace: "Azure.AI.Agents" }, JAVA_NAMES),
+    ).toBe("Azure.AI.Agents.Widget");
+  });
+
+  it("applies a namespace override", () => {
+    expect(
+      getClassFqn(
+        { name: "Widget", namespace: "ignored" },
+        { ...JAVA_NAMES, namespaceOverride: "Contoso.Ai" },
+      ),
+    ).toBe("Contoso.Ai.Widget");
+  });
+
+  it("drops an empty namespace, leaving the bare type name", () => {
+    expect(getClassFqn({ name: "Widget", namespace: "" }, JAVA_NAMES)).toBe(
+      "Widget",
+    );
   });
 });
 
@@ -169,6 +194,49 @@ describe("toTspAstInputEntries", () => {
       class_name: "com.azure.ai.agents.models.Tool",
       annotation_description: "Preview API. Eval=V1",
       member_name: "blobUrl",
+    });
+  });
+});
+
+describe("toListShape", () => {
+  it("collapses beta types into `class` and beta props into `field`, without a subpackage", () => {
+    const result = toListShape(COLLECTED, {});
+    // FQNs carry no models/internal subpackage; Tool::blobUrl is a beta
+    // property on the non-beta Tool, so it lands under `field`.
+    expect(result).toEqual({
+      class: ["com.azure.ai.agents.AgentDefinition"],
+      field: ["com.azure.ai.agents.Tool::blobUrl"],
+    });
+  });
+
+  it("sorts and de-duplicates each list", () => {
+    const collected: CollectedBeta = {
+      types: [
+        { ...COLLECTED.types[0], name: "Zeta" },
+        { ...COLLECTED.types[0], name: "Alpha" },
+        { ...COLLECTED.types[0], name: "Alpha" },
+      ],
+      properties: [
+        { ...COLLECTED.properties[0], propertyName: "second" },
+        { ...COLLECTED.properties[0], propertyName: "first" },
+        { ...COLLECTED.properties[0], propertyName: "first" },
+      ],
+    };
+    const result = toListShape(collected, {});
+    expect(result).toEqual({
+      class: ["com.azure.ai.agents.Alpha", "com.azure.ai.agents.Zeta"],
+      field: [
+        "com.azure.ai.agents.Tool::first",
+        "com.azure.ai.agents.Tool::second",
+      ],
+    });
+  });
+
+  it("applies the namespace override to both lists", () => {
+    const result = toListShape(COLLECTED, { namespace: "Contoso.Ai" });
+    expect(result).toEqual({
+      class: ["Contoso.Ai.AgentDefinition"],
+      field: ["Contoso.Ai.Tool::blobUrl"],
     });
   });
 });

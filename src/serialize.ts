@@ -1,5 +1,5 @@
 import { stringify as stringifyYaml } from "yaml";
-import type { OutputFormat, OutputShape } from "./types.js";
+import type { ListShape, OutputFormat, OutputShape } from "./types.js";
 
 export function getDefaultOutputFile(
   shape: OutputShape,
@@ -10,7 +10,9 @@ export function getDefaultOutputFile(
       ? "extensions"
       : shape === "revapi"
         ? "revapi"
-        : "tsp-ast-input";
+        : shape === "list"
+          ? "list"
+          : "tsp-ast-input";
   const extension = format === "yaml" ? "yaml" : format;
   return `${baseName}.${extension}`;
 }
@@ -32,7 +34,36 @@ function getCsvHeaders(shape: OutputShape): string[] {
       return ["ignore", "regex", "code", "old", "justification"];
     case "tsp-ast-input":
       return ["type", "class_name", "annotation_description", "member_name"];
+    case "list":
+      return ["type", "name"];
   }
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+function isListShape(payload: unknown): payload is ListShape {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  const candidate = payload as Record<string, unknown>;
+  return isStringArray(candidate.class) && isStringArray(candidate.field);
+}
+
+/** Flatten the `list` object into `{ type, name }` rows (classes then fields). */
+function listShapeToRows(payload: unknown): Array<Record<string, string>> {
+  if (!isListShape(payload)) {
+    throw new TypeError(
+      "Cannot serialize list output as CSV: expected payload to be an object with string[] properties 'class' and 'field'.",
+    );
+  }
+  return [
+    ...payload.class.map((name) => ({ type: "class", name })),
+    ...payload.field.map((name) => ({ type: "field", name })),
+  ];
 }
 
 export function stringifyCsvValue(value: unknown): string {
@@ -49,7 +80,12 @@ export function stringifyCsvValue(value: unknown): string {
 
 export function serializeCsv(payload: unknown, shape: OutputShape): string {
   const headers = getCsvHeaders(shape);
-  const rows = Array.isArray(payload) ? payload : [];
+  const rows =
+    shape === "list"
+      ? listShapeToRows(payload)
+      : Array.isArray(payload)
+        ? payload
+        : [];
   const lines = [headers.join(";")];
   for (const row of rows) {
     const record = row as Record<string, unknown>;

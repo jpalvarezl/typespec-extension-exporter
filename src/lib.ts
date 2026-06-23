@@ -26,21 +26,32 @@ export interface ExtensionEmitterOptions {
    *   to its Java fully-qualified name.
    * - "tsp-ast-input": annotation insertion requests for downstream AST
    *   customization.
+   * - "list": the class/field entries collapsed into two lists (`class` FQNs
+   *   and `field` references), named by their generated SDK fully-qualified
+   *   name (language-neutral; pair with `language`).
    */
-  "output-shape"?: "raw" | "revapi" | "tsp-ast-input";
+  "output-shape"?: "raw" | "revapi" | "tsp-ast-input" | "list";
   /** Output serialization format. Defaults to "json". */
   "output-format"?: "json" | "yaml" | "csv";
   /** Name of the output file to write into the emitter output directory. */
   "output-file"?: string;
 
-  // --- Java-output options (used when output-shape is "revapi" or "tsp-ast-input") ---
+  // --- SDK-output options (used when output-shape is "revapi", "tsp-ast-input", or "list") ---
 
   /**
-   * Optional override for the Java base package, e.g. "com.azure.ai.agents".
-   * When omitted, the client namespace resolved by TCGC (which honours
-   * `@@clientNamespace(..., "java")`) is used.
+   * Target SDK language for the language-neutral `list` shape. Known values:
+   * "java" (default), "csharp". Any other value is treated as a raw TCGC
+   * emitter name. `revapi` and `tsp-ast-input` are Java-specific; non-Java
+   * values for those shapes are an error.
    */
-  "java-namespace"?: string;
+  language?: string;
+  /**
+   * Optional override for the generated SDK base namespace/package, e.g.
+   * "com.azure.ai.agents" (Java) or "Azure.AI.Projects.Agents" (.NET). When
+   * omitted, the client namespace resolved by TCGC (which honours
+   * `@@clientNamespace`) is used.
+   */
+  namespace?: string;
   /** Subpackage where public models/enums live. Defaults to "models". */
   "models-subpackage"?: string;
   /** Subpackage where internal (non-public) types live. Defaults to "implementation.models". */
@@ -57,7 +68,7 @@ const EmitterOptionsSchema: JSONSchemaType<ExtensionEmitterOptions> = {
     kinds: { type: "string", nullable: true },
     "output-shape": {
       type: "string",
-      enum: ["raw", "revapi", "tsp-ast-input"],
+      enum: ["raw", "revapi", "tsp-ast-input", "list"],
       nullable: true,
     },
     "output-format": {
@@ -66,7 +77,8 @@ const EmitterOptionsSchema: JSONSchemaType<ExtensionEmitterOptions> = {
       nullable: true,
     },
     "output-file": { type: "string", nullable: true },
-    "java-namespace": { type: "string", nullable: true },
+    language: { type: "string", nullable: true },
+    namespace: { type: "string", nullable: true },
     "models-subpackage": { type: "string", nullable: true },
     "internal-subpackage": { type: "string", nullable: true },
     justification: { type: "string", nullable: true },
@@ -87,6 +99,12 @@ export const $lib = createTypeSpecLibrary({
       severity: "warning",
       messages: {
         default: paramMessage`Key '${"key"}' in the 'keys' option does not start with 'x-'; OpenAPI @extension keys always do, so it will never match.`,
+      },
+    },
+    "non-java-language-for-java-shape": {
+      severity: "error",
+      messages: {
+        default: paramMessage`The 'language' option value '${"language"}' is not supported for output-shape '${"shape"}'; that shape is Java-specific. Use output-shape 'list' for language-neutral output.`,
       },
     },
   },

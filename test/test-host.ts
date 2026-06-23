@@ -17,9 +17,10 @@ export const Tester = createTester(repoRoot, {
   .using("OpenAPI");
 
 /**
- * Tester for the Java output shapes (`revapi`, `tsp-ast-input`). These build a
- * TCGC SDK model, so the client-generator-core library must be loaded for its
- * decorators (`@access`, `@clientName`, ...) and for `createSdkContext`.
+ * Tester for SDK-derived output shapes (`revapi`, `tsp-ast-input`, `list`).
+ * These build a TCGC SDK model, so the client-generator-core library must be
+ * loaded for its decorators (`@access`, `@clientName`, ...) and for
+ * `createSdkContext`.
  */
 export const TcgcTester = createTester(repoRoot, {
   libraries: [
@@ -67,9 +68,10 @@ export async function emitJson<T = unknown>(
 
 /**
  * Like {@link emitJson} but tolerant of non-error diagnostics. The TCGC-backed
- * shapes (`revapi`, `tsp-ast-input`) build a full SDK model, which can surface
- * warnings unrelated to the emitter's output; this throws only on `error`-level
- * diagnostics so those warnings don't mask the behavior under test.
+ * shapes (`revapi`, `tsp-ast-input`, `list`) build a full SDK model, which can
+ * surface warnings unrelated to the emitter's output; this throws only on
+ * `error`-level diagnostics so those warnings don't mask the behavior under
+ * test.
  */
 export async function emitJsonTcgc<T = unknown>(
   tester: AnyTester,

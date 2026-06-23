@@ -1,6 +1,6 @@
 # Output shapes and formats
 
-This emitter has three semantic **output shapes** (`output-shape`) and three
+This emitter has four semantic **output shapes** (`output-shape`) and three
 serialization **formats** (`output-format`). The shape decides _what_ is
 emitted; the format decides _how_ it is serialized. See the
 [options reference](../README.md#options) for the full option list.
@@ -37,22 +37,26 @@ tsp compile <path> --emit typespec-extension-exporter \
   --option "typespec-extension-exporter.kinds=model,field"
 ```
 
-## Java output modes (`revapi` and `tsp-ast-input`)
+## SDK output modes (`revapi`, `tsp-ast-input`, and `list`)
 
-In both Java output modes the emitter builds the TypeSpec Client Generator Core
-(TCGC) SDK model the same way the `typespec-java` emitter does, so each beta
-entity is named exactly as it appears in the generated Java SDK:
+All SDK output modes build a TypeSpec Client Generator Core (TCGC) SDK model and
+name beta entities from that model. The Java-oriented shapes (`revapi` and
+`tsp-ast-input`) always use the Java TCGC scope because their payloads target
+Java revapi and Java AST customization consumers. The language-neutral `list`
+shape uses the `language` option (`java` by default, `csharp`, or a raw emitter
+name) so language-scoped customizations apply.
 
-- `@clientName` renames are applied.
+- `@clientName` / `@@clientName(..., "<lang>")` renames are applied according to
+  the selected TCGC scope.
 - The public/internal `access` decides the `models` vs `implementation.models`
-  subpackage.
-- Anonymous models (e.g. request bodies) have no distinct public Java type and
-  are skipped — their beta members are covered by the named models they
-  originate from.
+  subpackage for `revapi`/`tsp-ast-input`; `list` uses no subpackage.
+- Anonymous models (e.g. request bodies) have no distinct public type and are
+  skipped — their beta members are covered by the named models they originate
+  from.
 
-The Java package is taken from TCGC's resolved client namespace, or overridden
-with the `java-namespace` option. See the
-[Java-output options](../README.md#java-output-options-used-when-output-shape-is-revapi-or-tsp-ast-input).
+The base namespace/package is taken from TCGC's resolved client namespace, or
+overridden with the `namespace` option. See the
+[SDK-output options](../README.md#sdk-output-options-used-when-output-shape-is-revapi-tsp-ast-input-or-list).
 
 ### `revapi`
 
@@ -99,6 +103,36 @@ The `annotation_description` starts from the `justification` option (default
 `Preview API.`) and appends the gating preview feature keys parsed from the
 `@extension` value's `required_previews`/`conditional_previews` arrays.
 
+### `list`
+
+The beta `class`/`field` entries collapsed by type into two sorted,
+de-duplicated lists. Its CSV serialization is the same data flattened back to
+`type;name` rows — language neutral, so pair it with `language`:
+
+- `class` — generated-SDK FQNs of the **type-level** beta entities (models,
+  enums, unions).
+- `field` — beta **properties** declared on a non-beta container, as
+  `<ContainerFqn>::<propertyName>`. Properties of an already-beta container are
+  omitted (covered by its `class` entry), exactly like `revapi`/`tsp-ast-input`.
+
+Unlike `revapi`/`tsp-ast-input`, the FQN is just `namespace + "." + name` (no
+`models`/`implementation.models` subpackage):
+
+```yaml
+class:
+  - Azure.AI.Projects.Agents.AgentDefinition
+  - Azure.AI.Projects.Agents.WorkflowAgentDefinition
+field:
+  - Azure.AI.Projects.Agents.SomeModel::someBetaProperty
+```
+
+(CSV serialization writes the same data flattened to `type;name` rows.)
+
+For C# the namespace is resolved natively from the spec's `@clientNamespace`
+via the csharp TCGC scope, so no `namespace` override is needed; for Java the
+package usually comes from the `typespec-java` emitter's `namespace` option, so
+set `namespace` to match.
+
 ## Serialization formats
 
 `output-format` controls serialization for any shape:
@@ -110,7 +144,7 @@ The `annotation_description` starts from the `justification` option (default
 | `csv`  | Uses `;` as the delimiter. Object/array cell values are JSON-encoded and quoted; values containing `"`, `;`, or newlines are quoted with `""` escaping. |
 
 The default output file name follows the shape and format:
-`extensions.<format>` (raw), `revapi.<format>` (revapi), or
-`tsp-ast-input.<format>` (tsp-ast-input). Override it with `output-file`, or
-redirect the whole output directory with the built-in `emitter-output-dir`
-option.
+`extensions.<format>` (raw), `revapi.<format>` (revapi),
+`tsp-ast-input.<format>` (tsp-ast-input), or `list.<format>`
+(list). Override it with `output-file`, or redirect the whole output
+directory with the built-in `emitter-output-dir` option.

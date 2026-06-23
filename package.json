@@ -1,7 +1,7 @@
 {
   "name": "typespec-extension-exporter",
-  "version": "0.3.1",
-  "description": "TypeSpec emitter that exports @extension metadata as raw occurrences, revapi ignores, or AST annotation input, serialized as JSON, YAML, or CSV.",
+  "version": "0.4.0",
+  "description": "TypeSpec emitter that exports @extension metadata as raw occurrences, Java beta inputs, or grouped beta name lists, serialized as JSON, YAML, or CSV.",
   "type": "module",
   "license": "MIT",
   "main": "dist/src/index.js",

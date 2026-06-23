@@ -5,7 +5,7 @@
 //
 // The emit/options for this emitter live in each project's own
 // `tspconfig.yaml` in the spec repo, so we only pass `--emit` here; the shape,
-// format, output file name, keys and java-namespace come from that config.
+// format, output file name, keys and namespace override come from that config.
 //
 // Usage:
 //   node foundry/emit.mjs                       # both projects -> foundry/tsp-output/<project>/

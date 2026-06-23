@@ -6,20 +6,24 @@ import type {
 import type { EmitContext, Type } from "@typespec/compiler";
 import type { ExtensionEmitterOptions } from "./lib.js";
 import { getDecorators, readExtension } from "./extension.js";
+import { EMITTER_SCOPES } from "./options.js";
 import type { BetaProperty, BetaType, CollectedBeta } from "./types.js";
+
+/** Default TCGC emitter scope (Java, preserving existing Java outputs). */
+export const DEFAULT_EMITTER_SCOPE = EMITTER_SCOPES.java;
 
 /** Collect beta types and properties from the TCGC SDK package. */
 export async function collectBetaFromTcgc(
   context: EmitContext<ExtensionEmitterOptions>,
   keyFilter: Set<string> | undefined,
+  emitterScope: string = DEFAULT_EMITTER_SCOPE,
 ): Promise<CollectedBeta> {
-  // Use the Java emitter scope so `@clientName(..., "java")` and
-  // `@@clientNamespace(..., "java")` customizations are applied. TCGC derives
-  // the language ("java") from this emitter name.
-  const sdkContext = await createSdkContext(
-    context,
-    "@azure-tools/typespec-java",
-  );
+  // Use a language emitter scope so language-scoped customizations
+  // (`@clientName(..., "<lang>")`, `@@clientNamespace(..., "<lang>")`) are
+  // applied. TCGC derives the language from this emitter name, e.g.
+  // `@azure-tools/typespec-java` -> java, `@typespec/http-client-csharp` ->
+  // csharp.
+  const sdkContext = await createSdkContext(context, emitterScope);
   const pkg = sdkContext.sdkPackage;
 
   const types: BetaType[] = [];
@@ -31,7 +35,7 @@ export async function collectBetaFromTcgc(
     matched: { value: unknown },
   ): void => {
     // Anonymous models (e.g. request bodies) have no client namespace and do
-    // not map to a distinct public Java type; their beta members are covered
+    // not map to a distinct public SDK type; their beta members are covered
     // by the named models they originate from, so skip them.
     if (!sdkType.namespace) {
       return;
@@ -80,7 +84,7 @@ export async function collectBetaFromTcgc(
   // are already covered by the model's own entry.
   for (const model of pkg.models) {
     if (!model.namespace) {
-      continue; // anonymous model, no distinct public Java type
+      continue; // anonymous model, no distinct public SDK type
     }
     if (model.__raw && betaModelRaws.has(model.__raw)) {
       continue;

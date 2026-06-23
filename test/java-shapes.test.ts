@@ -49,7 +49,7 @@ const SAMPLE = `
 
 const JAVA_OPTIONS = {
   keys: "x-ms-foundry-meta",
-  "java-namespace": "com.azure.ai.agents",
+  namespace: "com.azure.ai.agents",
 };
 
 describe("revapi output shape", () => {

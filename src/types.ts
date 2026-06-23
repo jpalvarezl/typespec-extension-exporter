@@ -29,6 +29,16 @@ export interface RevapiEntry {
   justification: string;
 }
 
+/** The `list` output: the beta class/field entries collapsed by type into
+ * two sorted, de-duplicated lists. `class` holds beta type-level FQNs
+ * (`<namespace>.<Name>`); `field` holds beta property references on non-beta
+ * containers (`<ContainerFqn>::<propertyName>`). Neither carries a
+ * models/internal subpackage. */
+export interface ListShape {
+  class: string[];
+  field: string[];
+}
+
 /** A single annotation-insertion request for downstream AST customization. */
 export interface TspAstInputEntry {
   type: "field" | "class";
@@ -37,11 +47,11 @@ export interface TspAstInputEntry {
   member_name?: string;
 }
 
-/** A beta type-level entity, named as it appears in the generated Java SDK. */
+/** A beta type-level entity, named as it appears in the selected SDK scope. */
 export interface BetaType {
-  /** Java type name (reflects `@clientName` customizations). */
+  /** SDK type name (reflects language-scoped `@clientName` customizations). */
   name: string;
-  /** Java client namespace, e.g. "com.azure.ai.agents". */
+  /** SDK client namespace/package, e.g. "com.azure.ai.agents" or "Azure.AI.Agents". */
   namespace: string;
   /** Whether the type is public or relocated to the internal subpackage. */
   access: "public" | "internal";
@@ -54,7 +64,7 @@ export interface BetaProperty {
   containerName: string;
   containerNamespace: string;
   containerAccess: "public" | "internal";
-  /** Java property name (camelCase, reflects `@clientName`). */
+  /** SDK property/member name (reflects language-scoped `@clientName`). */
   propertyName: string;
   value: unknown;
 }
