@@ -7,7 +7,6 @@ import { collectRawOccurrences } from "./collect-raw.js";
 import {
   findNonExtensionKeys,
   findUnknownKinds,
-  hasExplicitLanguage,
   parseKeyFilter,
   parseKindFilter,
   resolveEmitterScope,
@@ -57,7 +56,8 @@ export async function $onEmit(
 
   let payload: unknown;
   if (shape === "revapi" || shape === "tsp-ast-input") {
-    if (!hasExplicitLanguage(options.language)) {
+    const scope = resolveEmitterScope(options.language);
+    if (!scope) {
       reportDiagnostic(program, {
         code: "missing-language-for-sdk-shape",
         format: { shape },
@@ -65,11 +65,10 @@ export async function $onEmit(
       });
       return;
     }
-    const language = options.language!.trim();
-    if (!resolvesToJavaScope(language)) {
+    if (!resolvesToJavaScope(options.language)) {
       reportDiagnostic(program, {
         code: "non-java-language-for-java-shape",
-        format: { language, shape },
+        format: { language: options.language!.trim(), shape },
         target: NoTarget,
       });
       return;
@@ -83,16 +82,13 @@ export async function $onEmit(
         ? toRevapiEntries(collected, options)
         : toTspAstInputEntries(collected, options);
   } else if (shape === "list") {
-    if (!hasExplicitLanguage(options.language)) {
+    const scope = resolveEmitterScope(options.language);
+    if (!scope) {
       reportDiagnostic(program, {
         code: "missing-language-for-sdk-shape",
         format: { shape },
         target: NoTarget,
       });
-      return;
-    }
-    const scope = resolveEmitterScope(options.language);
-    if (!scope) {
       return;
     }
     const collected = await collectBetaFromTcgc(context, keyFilter, scope);

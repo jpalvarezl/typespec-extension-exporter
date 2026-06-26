@@ -92,22 +92,27 @@ describe("option diagnostics", () => {
     },
   );
 
-  it("errors and emits no output when language is blank for an SDK-derived shape", async () => {
-    const [result, diagnostics] = await diagnoseWithOutputs({
-      keys: "x-a",
-      language: "   ",
-      "output-shape": "list",
-    });
+  it.each(["revapi", "tsp-ast-input", "list"])(
+    "errors and emits no output when language is blank for %s",
+    async (shape) => {
+      const [result, diagnostics] = await diagnoseWithOutputs({
+        keys: "x-a",
+        language: "   ",
+        "output-shape": shape,
+      });
 
-    expectDiagnostics(diagnostics, [
-      {
-        code: "typespec-extension-exporter/missing-language-for-sdk-shape",
-        severity: "error",
-        message: /language.*required.*output-shape 'list'.*explicitly/,
-      },
-    ]);
-    expect(result.outputs).toEqual({});
-  });
+      expectDiagnostics(diagnostics, [
+        {
+          code: "typespec-extension-exporter/missing-language-for-sdk-shape",
+          severity: "error",
+          message: new RegExp(
+            `language.*required.*output-shape '${shape}'.*explicitly`,
+          ),
+        },
+      ]);
+      expect(result.outputs).toEqual({});
+    },
+  );
 
   it.each(["revapi", "tsp-ast-input"])(
     "errors and emits no output when a non-Java language is supplied for %s",
