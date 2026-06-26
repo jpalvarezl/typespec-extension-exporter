@@ -43,8 +43,10 @@ All SDK output modes build a TypeSpec Client Generator Core (TCGC) SDK model and
 name beta entities from that model. The Java-oriented shapes (`revapi` and
 `tsp-ast-input`) always use the Java TCGC scope because their payloads target
 Java revapi and Java AST customization consumers. The language-neutral `list`
-shape uses the `language` option (`java` by default, `csharp`, or a raw emitter
-name) so language-scoped customizations apply.
+shape uses the required `language` option (`java`, `csharp`, or a raw emitter
+name) so language-scoped customizations apply. SDK output modes require
+`language` to be set explicitly; missing or blank `language` is a compiler
+error.
 
 - `@clientName` / `@@clientName(..., "<lang>")` renames are applied according to
   the selected TCGC scope.
@@ -107,7 +109,7 @@ The `annotation_description` starts from the `justification` option (default
 
 The beta `class`/`field` entries collapsed by type into two sorted,
 de-duplicated lists. Its CSV serialization is the same data flattened back to
-`type;name` rows — language neutral, so pair it with `language`:
+`type;name` rows — language neutral, so set `language` explicitly:
 
 - `class` — generated-SDK FQNs of the **type-level** beta entities (models,
   enums, unions).

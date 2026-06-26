@@ -34,11 +34,11 @@ in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 | --------------------- | -------------------------------------------------------------------- |
 | `src/index.ts`        | `$onEmit` orchestrator; re-exports `$lib` and public output types.   |
 | `src/lib.ts`          | `$lib` definition, options schema, and diagnostics.                  |
-| `src/options.ts`      | Filter parsing, Java naming options, option-validation helpers.      |
+| `src/options.ts`      | Filter parsing, SDK naming options, option-validation helpers.       |
 | `src/extension.ts`    | `@extension` detection and decorator reading.                        |
 | `src/collect-raw.ts`  | Raw `@extension` occurrence collection via the type graph.           |
-| `src/collect-beta.ts` | TCGC beta-entity collection (Java output modes).                     |
-| `src/transform.ts`    | `revapi` + `tsp-ast-input` transforms and Java FQN/text helpers.     |
+| `src/collect-beta.ts` | TCGC beta-entity collection for SDK output modes.                    |
+| `src/transform.ts`    | SDK output transforms and generated FQN/text helpers.                |
 | `src/serialize.ts`    | JSON/YAML/CSV serialization.                                         |
 | `src/types.ts`        | Shared interfaces.                                                   |
 | `test/`               | Vitest integration tests (compile a spec) + `test/unit/` unit tests. |
@@ -89,9 +89,10 @@ come from the spec's committed `tspconfig.yaml`. See the
 ### Adding a new Foundry project
 
 1. Add an `options.typespec-extension-exporter` block to that project's
-   `tspconfig.yaml` in the spec repo (`keys`, `output-shape`, `output-format`,
-   `output-file`, and `namespace` matching the language emitter's `namespace`
-   when it isn't set via `@@clientNamespace`).
+   `tspconfig.yaml` in the spec repo (`keys`, explicit `language`,
+   `output-shape`, `output-format`, `output-file`, and `namespace` matching
+   the language emitter's `namespace` when it isn't set via
+   `@@clientNamespace`).
 2. Add the project to the `PROJECTS` map in
    [`foundry/emit.mjs`](../foundry/emit.mjs) and, optionally, a
    `foundry:emit:<name>` npm script.

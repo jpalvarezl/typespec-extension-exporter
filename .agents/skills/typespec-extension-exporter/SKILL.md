@@ -21,12 +21,13 @@ A TypeSpec emitter (TypeSpec compiler v1.13) with four output shapes and JSON/YA
   no subpackage). `class` holds beta types (model/enum/union); `field` holds
   beta properties on a non-beta container as `<ContainerFqn>::<propertyName>`.
   Like the Java shapes, properties of an already-beta container are omitted
-  (covered by its `class` entry). Language-neutral — pair with `language`
+  (covered by its `class` entry). Language-neutral — set `language` explicitly
   (built for the C# SDK, where the namespace comes from `@clientNamespace`).
 
 Names/packages come from TCGC (`@azure-tools/typespec-client-generator-core`).
 `revapi` and `tsp-ast-input` are Java-specific and always use the Java TCGC
-scope. The `list` shape uses the `language` option (Java by default, or C#) so
+scope, but still require `language: java` to be set explicitly. The `list`
+shape also requires `language` (`java`, `csharp`, or a raw emitter name) so
 language-scoped `@clientName` renames and `@@clientNamespace(..., "<lang>")`
 are honoured. `revapi`, `tsp-ast-input`, and `list` are the **SDK output modes**
 (they build the TCGC model); `raw` walks the type graph.
@@ -49,7 +50,7 @@ exist only in the source repo.
 | [src/lib.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/lib.ts)                   | `$lib` definition + options schema (`ExtensionEmitterOptions`)                      |
 | [src/options.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/options.ts)           | Filter parsing, SDK naming + emitter-scope (`resolveEmitterScope`) options          |
 | [src/collect-raw.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/collect-raw.ts)   | Raw `@extension` occurrence collection via the type graph                           |
-| [src/collect-beta.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/collect-beta.ts) | TCGC beta-entity collection (Java scope by default; `list` may pass another scope)  |
+| [src/collect-beta.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/collect-beta.ts) | TCGC beta-entity collection (SDK scope selected by explicit `language`)             |
 | [src/transform.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/transform.ts)       | revapi + tsp-ast-input + list transforms and SDK FQN/text helpers                   |
 | [src/serialize.ts](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/src/serialize.ts)       | JSON/YAML/CSV serialization                                                         |
 | [foundry/emit.mjs](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/foundry/emit.mjs)       | Cross-platform helper for emitting against a local spec checkout (source repo only) |
@@ -82,7 +83,7 @@ comma-separated strings.
 | `output-shape`        | `raw` \| `revapi` \| `tsp-ast-input` \| `list`  | `raw`                                              | Semantic output shape (see modes above).                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `output-format`       | `json` \| `yaml` \| `csv`                       | `json`                                             | Serialization format. CSV output uses `;` as the delimiter.                                                                                                                                                                                                                                                                                                                                                                                 |
 | `output-file`         | string                                          | `<shape>.<format>` (`extensions.<format>` for raw) | File name written into the emitter output dir. Defaults: `extensions.<format>` (raw), `revapi.<format>`, `tsp-ast-input.<format>`, `list.<format>`.                                                                                                                                                                                                                                                                                         |
-| `language`            | string (`java` \| `csharp` \| raw emitter name) | `java`                                             | `list` shape only. Picks the TCGC emitter scope so language-scoped customizations (`@clientName(..., "<lang>")`, `@@clientNamespace(..., "<lang>")`) apply. `java`→`@azure-tools/typespec-java`, `csharp`→`@typespec/http-client-csharp`; any other value is used verbatim as the scope. `revapi`/`tsp-ast-input` are Java-specific; non-Java values for those shapes are an error and no output is emitted.                                |
+| `language`            | string (`java` \| `csharp` \| raw emitter name) | **required for SDK output modes**                  | Required when `output-shape` is `revapi`, `tsp-ast-input`, or `list`; missing/blank reports `missing-language-for-sdk-shape` and emits no output. Picks the TCGC emitter scope so language-scoped customizations (`@clientName(..., "<lang>")`, `@@clientNamespace(..., "<lang>")`) apply. `java`→`@azure-tools/typespec-java`, `csharp`→`@typespec/http-client-csharp`; any other value is used verbatim as the scope. `revapi`/`tsp-ast-input` are Java-specific, so set `language: java`; non-Java values report `non-java-language-for-java-shape` and emit no output. |
 | `namespace`           | string                                          | TCGC client namespace                              | SDK output modes only. Override the generated SDK base namespace/package, e.g. `com.azure.ai.agents` (Java) or `Azure.AI.Projects.Agents` (.NET). **Set this when the package comes from the language emitter's own `namespace` option rather than `@@clientNamespace`** — the Java `projects`/`agents` projects have no `@@clientNamespace`, so they need it; the C# project resolves it natively from `@clientNamespace`, so it omits it. |
 | `models-subpackage`   | string                                          | `models`                                           | `revapi`/`tsp-ast-input` only. Subpackage for public types. (`list` uses no subpackage.)                                                                                                                                                                                                                                                                                                                                                    |
 | `internal-subpackage` | string                                          | `implementation.models`                            | `revapi`/`tsp-ast-input` only. Subpackage for non-public (internal `access`) types.                                                                                                                                                                                                                                                                                                                                                         |
@@ -156,9 +157,10 @@ The Foundry spec lives in the `azure-rest-api-specs` repo. Three SDK projects
 carry this emitter's options in their own `tspconfig.yaml` under
 `options.typespec-extension-exporter`:
 
-- `sdk-java-azure-ai-agents`, `sdk-java-azure-ai-projects` (Java) — default
-  output: the `tsp-ast-input` CSV `beta-annotations.csv` the Java SDK consumes.
-- `sdk-csharp-azure-ai-projects-agents` (C#) — `list` YAML
+- `sdk-java-azure-ai-agents`, `sdk-java-azure-ai-projects` (Java,
+  `language: java`) — default output: the `tsp-ast-input` CSV
+  `beta-annotations.csv` the Java SDK consumes.
+- `sdk-csharp-azure-ai-projects-agents` (C#, `language: csharp`) — `list` YAML
   (`list.yaml`).
 
 The block is **inert** unless the emitter is selected with `--emit`, so a plain
@@ -204,6 +206,8 @@ node -e "const fs=require('fs');const f='foundry/tsp-output/agents/beta-annotati
 
 # C# list (manual --emit; resolves Azure.AI.Projects.Agents.* from @clientNamespace):
 #   npx tsp compile <FOUNDRY>/src/sdk-csharp-azure-ai-projects-agents/client.tsp --emit typespec-extension-exporter
+# If the tspconfig has not yet been updated, also pass:
+#   --option typespec-extension-exporter.language=csharp
 # -> list.yaml: two lists, `class:` (FQNs) and `field:` (`<FQN>::<prop>`).
 
 # spec repo should only show the three tspconfig.yaml edits as tracked changes
@@ -223,10 +227,12 @@ npx tsp compile <synced client.tsp> \                  # run from within `TempTy
 npx tsp-client generate                                # Java codegen, from package root; @Beta customization reads the CSV
 ```
 
-No emitter option needs to be passed — the output location comes from the
-committed `emitter-output-dir`. The `@Beta` customization throws if
-`customizations/beta-annotations.csv` is missing, so the `tsp compile` step must
-run before `tsp-client generate`.
+No emitter option needs to be passed when the synced `tspconfig.yaml` already
+contains `language: java` and the committed `emitter-output-dir`. If the synced
+config predates the breaking change, pass
+`--option typespec-extension-exporter.language=java` (or update the config). The
+`@Beta` customization throws if `customizations/beta-annotations.csv` is
+missing, so the `tsp compile` step must run before `tsp-client generate`.
 
 `tsp-client generate --emitter-options` only feeds the **main** emitter
 (typespec-java) from `eng/emitter-package.json`, so it cannot run this emitter;
@@ -236,9 +242,9 @@ before generation.
 ## Adding a new Foundry project
 
 1. Add an `options.typespec-extension-exporter` block to that project's
-   `tspconfig.yaml` in the spec repo (`keys`, `output-shape`, `output-format`,
-   `output-file`, `language` if not Java, and `namespace` matching the language
-   emitter's `namespace` when it isn't set via `@@clientNamespace`).
+   `tspconfig.yaml` in the spec repo (`keys`, explicit `language`,
+   `output-shape`, `output-format`, `output-file`, and `namespace` matching the
+   language emitter's `namespace` when it isn't set via `@@clientNamespace`).
 2. For a Java project, add it to the `PROJECTS` map in
    [foundry/emit.mjs](https://github.com/jpalvarezl/typespec-extension-exporter/blob/main/foundry/emit.mjs)
    and a `foundry:emit:<name>` npm
@@ -261,6 +267,10 @@ before generation.
 - `kinds` and `keys` must be comma-separated **strings**; array values fail
   schema validation. Invalid `kinds`/`keys` values produce a warning diagnostic
   (`unknown-kind` / `non-extension-key`) but do not fail the build.
+- `language` is mandatory for SDK output modes (`revapi`, `tsp-ast-input`, and
+  `list`). Missing or blank `language` reports `missing-language-for-sdk-shape`
+  and emits no output. `revapi` and `tsp-ast-input` also require Java;
+  non-Java values report `non-java-language-for-java-shape` and emit no output.
 - Property names from TCGC may be snake_case or camelCase; revapi mode
   PascalCases them for the Java accessor regex. `tsp-ast-input` mode uses the
   TCGC property/member name directly in `member_name`.

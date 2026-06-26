@@ -71,20 +71,63 @@ describe("option diagnostics", () => {
     ).toHaveLength(2);
   });
 
-  it("errors and emits no output when a non-Java language is supplied for Java-specific shapes", async () => {
+  it.each(["revapi", "tsp-ast-input", "list"])(
+    "errors and emits no output when language is missing for %s",
+    async (shape) => {
+      const [result, diagnostics] = await diagnoseWithOutputs({
+        keys: "x-a",
+        "output-shape": shape,
+      });
+
+      expectDiagnostics(diagnostics, [
+        {
+          code: "typespec-extension-exporter/missing-language-for-sdk-shape",
+          severity: "error",
+          message: new RegExp(
+            `language.*required.*output-shape '${shape}'.*explicitly`,
+          ),
+        },
+      ]);
+      expect(result.outputs).toEqual({});
+    },
+  );
+
+  it("errors and emits no output when language is blank for an SDK-derived shape", async () => {
     const [result, diagnostics] = await diagnoseWithOutputs({
       keys: "x-a",
-      language: "csharp",
-      "output-shape": "revapi",
+      language: "   ",
+      "output-shape": "list",
     });
 
     expectDiagnostics(diagnostics, [
       {
-        code: "typespec-extension-exporter/non-java-language-for-java-shape",
+        code: "typespec-extension-exporter/missing-language-for-sdk-shape",
         severity: "error",
-        message: /language.*csharp.*not supported.*revapi.*Java-specific/,
+        message: /language.*required.*output-shape 'list'.*explicitly/,
       },
     ]);
     expect(result.outputs).toEqual({});
   });
+
+  it.each(["revapi", "tsp-ast-input"])(
+    "errors and emits no output when a non-Java language is supplied for %s",
+    async (shape) => {
+      const [result, diagnostics] = await diagnoseWithOutputs({
+        keys: "x-a",
+        language: "csharp",
+        "output-shape": shape,
+      });
+
+      expectDiagnostics(diagnostics, [
+        {
+          code: "typespec-extension-exporter/non-java-language-for-java-shape",
+          severity: "error",
+          message: new RegExp(
+            `language.*csharp.*not supported.*${shape}.*Java-specific`,
+          ),
+        },
+      ]);
+      expect(result.outputs).toEqual({});
+    },
+  );
 });
