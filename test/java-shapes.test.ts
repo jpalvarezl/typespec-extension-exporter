@@ -49,6 +49,7 @@ const SAMPLE = `
 
 const JAVA_OPTIONS = {
   keys: "x-ms-foundry-meta",
+  language: "java",
   namespace: "com.azure.ai.agents",
 };
 

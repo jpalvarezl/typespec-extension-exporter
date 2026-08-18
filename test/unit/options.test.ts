@@ -3,6 +3,7 @@ import {
   findNonExtensionKeys,
   findUnknownKinds,
   getJavaNameOptions,
+  hasExplicitLanguage,
   normalizeKind,
   parseKeyFilter,
   parseKindFilter,
@@ -77,11 +78,20 @@ describe("findNonExtensionKeys", () => {
   });
 });
 
+describe("hasExplicitLanguage", () => {
+  it("requires a non-blank value", () => {
+    expect(hasExplicitLanguage(undefined)).toBe(false);
+    expect(hasExplicitLanguage("")).toBe(false);
+    expect(hasExplicitLanguage("   ")).toBe(false);
+    expect(hasExplicitLanguage("java")).toBe(true);
+  });
+});
+
 describe("resolveEmitterScope", () => {
-  it("defaults to the Java emitter scope when unset/empty/blank", () => {
-    expect(resolveEmitterScope(undefined)).toBe("@azure-tools/typespec-java");
-    expect(resolveEmitterScope("")).toBe("@azure-tools/typespec-java");
-    expect(resolveEmitterScope("   ")).toBe("@azure-tools/typespec-java");
+  it("returns undefined when language is unset/empty/blank", () => {
+    expect(resolveEmitterScope(undefined)).toBeUndefined();
+    expect(resolveEmitterScope("")).toBeUndefined();
+    expect(resolveEmitterScope("   ")).toBeUndefined();
   });
 
   it("maps known languages to emitter names, case-insensitively", () => {
@@ -99,13 +109,15 @@ describe("resolveEmitterScope", () => {
 });
 
 describe("resolvesToJavaScope", () => {
-  it("accepts unset/blank/java values", () => {
-    expect(resolvesToJavaScope(undefined)).toBe(true);
-    expect(resolvesToJavaScope(" ")).toBe(true);
+  it("accepts explicit java values", () => {
+    expect(resolvesToJavaScope("java")).toBe(true);
     expect(resolvesToJavaScope("JAVA")).toBe(true);
+    expect(resolvesToJavaScope("@azure-tools/typespec-java")).toBe(true);
   });
 
-  it("rejects non-Java values", () => {
+  it("rejects unset/blank/non-Java values", () => {
+    expect(resolvesToJavaScope(undefined)).toBe(false);
+    expect(resolvesToJavaScope(" ")).toBe(false);
     expect(resolvesToJavaScope("csharp")).toBe(false);
     expect(resolvesToJavaScope("@azure-tools/typespec-python")).toBe(false);
   });

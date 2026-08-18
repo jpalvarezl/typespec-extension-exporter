@@ -39,10 +39,11 @@ export interface ExtensionEmitterOptions {
   // --- SDK-output options (used when output-shape is "revapi", "tsp-ast-input", or "list") ---
 
   /**
-   * Target SDK language for the language-neutral `list` shape. Known values:
-   * "java" (default), "csharp". Any other value is treated as a raw TCGC
-   * emitter name. `revapi` and `tsp-ast-input` are Java-specific; non-Java
-   * values for those shapes are an error.
+   * Target SDK language for SDK-derived outputs. Must be explicitly supplied
+   * when `output-shape` is `revapi`, `tsp-ast-input`, or `list`. Known values:
+   * "java", "csharp". Any other value is treated as a raw TCGC emitter name.
+   * `revapi` and `tsp-ast-input` are Java-specific; non-Java values for those
+   * shapes are an error.
    */
   language?: string;
   /**
@@ -101,10 +102,16 @@ export const $lib = createTypeSpecLibrary({
         default: paramMessage`Key '${"key"}' in the 'keys' option does not start with 'x-'; OpenAPI @extension keys always do, so it will never match.`,
       },
     },
+    "missing-language-for-sdk-shape": {
+      severity: "error",
+      messages: {
+        default: paramMessage`The 'language' option is required for output-shape '${"shape"}'. Set it explicitly (for example, 'java' or 'csharp').`,
+      },
+    },
     "non-java-language-for-java-shape": {
       severity: "error",
       messages: {
-        default: paramMessage`The 'language' option value '${"language"}' is not supported for output-shape '${"shape"}'; that shape is Java-specific. Use output-shape 'list' for language-neutral output.`,
+        default: paramMessage`The 'language' option value '${"language"}' is not supported for output-shape '${"shape"}'; that shape is Java-specific. Use 'language: java' or output-shape 'list' for language-neutral output.`,
       },
     },
   },

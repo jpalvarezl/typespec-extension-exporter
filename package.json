@@ -1,6 +1,6 @@
 {
   "name": "typespec-extension-exporter",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "TypeSpec emitter that exports @extension metadata as raw occurrences, Java beta inputs, or grouped beta name lists, serialized as JSON, YAML, or CSV.",
   "type": "module",
   "license": "MIT",

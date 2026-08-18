@@ -64,7 +64,7 @@ Pass options via `--option typespec-extension-exporter.<name>=<value>` (or under
 
 | Option                | Type   | Description                                                                                                                                                                                                                                                                                                                                        |
 | --------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `language`            | string | Target SDK language for the language-neutral `list` shape. Known values: `java` (default), `csharp`. Any other value is treated as a raw TCGC emitter name. `revapi` and `tsp-ast-input` are Java-specific; non-Java values for those shapes are an error and no output is emitted.                                                                |
+| `language`            | string | **Required** for SDK-derived shapes (`revapi`, `tsp-ast-input`, and `list`). Known values: `java`, `csharp`. Any other value is treated as a raw TCGC emitter name. `revapi` and `tsp-ast-input` are Java-specific; non-Java values for those shapes are an error and no output is emitted.                                                        |
 | `namespace`           | string | Override for the generated SDK base namespace/package, e.g. `com.azure.ai.agents` (Java) or `Azure.AI.Projects.Agents` (.NET). When omitted, the client namespace resolved by TCGC (which honours `@@clientNamespace`) is used. Set this when the package comes from the language emitter's own `namespace` option instead of `@@clientNamespace`. |
 | `models-subpackage`   | string | Subpackage for public models/enums. Defaults to `models`. (Applies to `revapi`/`tsp-ast-input`; `list` uses no subpackage.)                                                                                                                                                                                                                        |
 | `internal-subpackage` | string | Subpackage for non-public (internal-access) types. Defaults to `implementation.models`.                                                                                                                                                                                                                                                            |
@@ -79,17 +79,27 @@ values that can never match:
 - `non-extension-key`: a `keys` value that does not start with `x-` (OpenAPI
   `@extension` keys always do).
 
+The emitter reports a compiler error and emits no output for SDK-derived shape
+configuration errors:
+
+- `missing-language-for-sdk-shape`: `language` is missing or blank for
+  `revapi`, `tsp-ast-input`, or `list`.
+- `non-java-language-for-java-shape`: `revapi` or `tsp-ast-input` is paired
+  with a language that does not resolve to Java.
+
 Examples:
 
 ```yaml
 options:
   typespec-extension-exporter:
+    language: java
     output-shape: tsp-ast-input
     output-format: yaml
 ```
 
 ```bash
 tsp compile <path> --emit typespec-extension-exporter \
+  --option typespec-extension-exporter.language=java \
   --option typespec-extension-exporter.output-shape=revapi \
   --option typespec-extension-exporter.output-format=csv
 ```
@@ -109,10 +119,11 @@ repo. Its two Java SDK projects carry Java `tsp-ast-input` options in their own
 | `sdk-java-azure-ai-agents`   | `.../Foundry/src/sdk-java-azure-ai-agents/tspconfig.yaml`   |
 | `sdk-java-azure-ai-projects` | `.../Foundry/src/sdk-java-azure-ai-projects/tspconfig.yaml` |
 
-Each has an `options.typespec-extension-exporter` block (default output: the
-`tsp-ast-input` CSV the Java SDK consumes as
+Each has an `options.typespec-extension-exporter` block with `language: java`
+(default output: the `tsp-ast-input` CSV the Java SDK consumes as
 `<library-module>/customizations/beta-annotations.csv`). The C# Foundry project
-can use `output-shape: list` to emit `list.yaml`. These blocks are **inert**
+can use `output-shape: list` with `language: csharp` to emit `list.yaml`. These
+blocks are **inert**
 during a normal `tsp compile` — they only take effect when the emitter is
 explicitly selected with `--emit typespec-extension-exporter`, so they never
 disrupt other contributors.
@@ -213,4 +224,4 @@ the CSV in the wrong place.
   `tsp-ast-input`, and `list` shapes in depth, SDK naming rules, and the
   JSON/YAML/CSV formats.
 - [Contributing](docs/contribute.md) — local setup, scripts, project structure,
-  testing, and how `foundry/emit.mjs` works.
+  testing, trusted npm publishing, and how `foundry/emit.mjs` works.

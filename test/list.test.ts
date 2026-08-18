@@ -10,8 +10,8 @@ interface ListShape {
 /**
  * The `list` shape collapses the `class`/`field` entries (as seen in the csv /
  * tsp-ast-input shapes) into two sorted, de-duplicated lists. It is
- * language-neutral: the `language` option picks the TCGC scope (Java by
- * default, or C#) and `namespace` / `@clientNamespace` supplies the base
+ * language-neutral: the required `language` option picks the TCGC scope (for
+ * example, Java or C#) and `namespace` / `@clientNamespace` supplies the base
  * package.
  *
  * The sample carries `@clientNamespace("Azure.AI.Agents")` so the csharp scope
@@ -132,12 +132,13 @@ describe("list output shape", () => {
     ]);
   });
 
-  it("works under the default Java scope with a namespace override", async () => {
+  it("works under the explicit Java scope with a namespace override", async () => {
     const result = await emitJsonTcgc<ListShape>(TcgcTester, SAMPLE, {
       keys: "x-ms-foundry-meta",
+      language: "java",
       "output-shape": "list",
-      // No `language` -> default Java scope. `namespace` supplies the base
-      // package. Deliberately no `.models` subpackage: FQN is namespace + name.
+      // `namespace` supplies the base package. Deliberately no `.models`
+      // subpackage: FQN is namespace + name.
       namespace: "com.azure.ai.agents",
     });
 

@@ -79,21 +79,30 @@ export const EMITTER_SCOPES: Readonly<Record<string, string>> = {
   csharp: "@typespec/http-client-csharp",
 };
 
+/** True when the `language` option is present and not only whitespace. */
+export function hasExplicitLanguage(language: string | undefined): boolean {
+  return language?.trim().length ? true : false;
+}
+
 /**
  * Resolve the TCGC emitter scope from the `language` option. Known languages
  * map to their emitter package name; any other value is passed through verbatim
- * (so a full emitter name can be supplied). Defaults to Java.
+ * (so a full emitter name can be supplied). Returns undefined when the option
+ * is unset or blank; callers for SDK-derived output shapes must diagnose that
+ * as a configuration error instead of silently defaulting.
  */
-export function resolveEmitterScope(language: string | undefined): string {
+export function resolveEmitterScope(
+  language: string | undefined,
+): string | undefined {
   const trimmed = language?.trim();
   if (!trimmed) {
-    return EMITTER_SCOPES.java;
+    return undefined;
   }
   const key = trimmed.toLowerCase();
   return EMITTER_SCOPES[key] ?? trimmed;
 }
 
-/** True when the language option is unset/blank or resolves to the Java scope. */
+/** True when the language option is explicitly present and resolves to the Java scope. */
 export function resolvesToJavaScope(language: string | undefined): boolean {
   return resolveEmitterScope(language) === EMITTER_SCOPES.java;
 }

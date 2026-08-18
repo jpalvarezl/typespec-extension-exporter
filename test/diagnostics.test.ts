@@ -71,20 +71,68 @@ describe("option diagnostics", () => {
     ).toHaveLength(2);
   });
 
-  it("errors and emits no output when a non-Java language is supplied for Java-specific shapes", async () => {
-    const [result, diagnostics] = await diagnoseWithOutputs({
-      keys: "x-a",
-      language: "csharp",
-      "output-shape": "revapi",
-    });
+  it.each(["revapi", "tsp-ast-input", "list"])(
+    "errors and emits no output when language is missing for %s",
+    async (shape) => {
+      const [result, diagnostics] = await diagnoseWithOutputs({
+        keys: "x-a",
+        "output-shape": shape,
+      });
 
-    expectDiagnostics(diagnostics, [
-      {
-        code: "typespec-extension-exporter/non-java-language-for-java-shape",
-        severity: "error",
-        message: /language.*csharp.*not supported.*revapi.*Java-specific/,
-      },
-    ]);
-    expect(result.outputs).toEqual({});
-  });
+      expectDiagnostics(diagnostics, [
+        {
+          code: "typespec-extension-exporter/missing-language-for-sdk-shape",
+          severity: "error",
+          message: new RegExp(
+            `language.*required.*output-shape '${shape}'.*explicitly`,
+          ),
+        },
+      ]);
+      expect(result.outputs).toEqual({});
+    },
+  );
+
+  it.each(["revapi", "tsp-ast-input", "list"])(
+    "errors and emits no output when language is blank for %s",
+    async (shape) => {
+      const [result, diagnostics] = await diagnoseWithOutputs({
+        keys: "x-a",
+        language: "   ",
+        "output-shape": shape,
+      });
+
+      expectDiagnostics(diagnostics, [
+        {
+          code: "typespec-extension-exporter/missing-language-for-sdk-shape",
+          severity: "error",
+          message: new RegExp(
+            `language.*required.*output-shape '${shape}'.*explicitly`,
+          ),
+        },
+      ]);
+      expect(result.outputs).toEqual({});
+    },
+  );
+
+  it.each(["revapi", "tsp-ast-input"])(
+    "errors and emits no output when a non-Java language is supplied for %s",
+    async (shape) => {
+      const [result, diagnostics] = await diagnoseWithOutputs({
+        keys: "x-a",
+        language: "csharp",
+        "output-shape": shape,
+      });
+
+      expectDiagnostics(diagnostics, [
+        {
+          code: "typespec-extension-exporter/non-java-language-for-java-shape",
+          severity: "error",
+          message: new RegExp(
+            `language.*csharp.*not supported.*${shape}.*Java-specific`,
+          ),
+        },
+      ]);
+      expect(result.outputs).toEqual({});
+    },
+  );
 });

@@ -56,18 +56,26 @@ export async function $onEmit(
 
   let payload: unknown;
   if (shape === "revapi" || shape === "tsp-ast-input") {
-    const language = options.language?.trim();
-    if (language && !resolvesToJavaScope(language)) {
+    const scope = resolveEmitterScope(options.language);
+    if (!scope) {
+      reportDiagnostic(program, {
+        code: "missing-language-for-sdk-shape",
+        format: { shape },
+        target: NoTarget,
+      });
+      return;
+    }
+    if (!resolvesToJavaScope(options.language)) {
       reportDiagnostic(program, {
         code: "non-java-language-for-java-shape",
-        format: { language, shape },
+        format: { language: options.language!.trim(), shape },
         target: NoTarget,
       });
       return;
     }
     // These outputs are intentionally Java-specific: revapi uses `java\\..*`
     // codes and tsp-ast-input feeds Java AST customizations. Keep their TCGC
-    // scope fixed to Java so existing Java behavior remains unchanged.
+    // scope fixed to Java.
     const collected = await collectBetaFromTcgc(context, keyFilter);
     payload =
       shape === "revapi"
@@ -75,6 +83,14 @@ export async function $onEmit(
         : toTspAstInputEntries(collected, options);
   } else if (shape === "list") {
     const scope = resolveEmitterScope(options.language);
+    if (!scope) {
+      reportDiagnostic(program, {
+        code: "missing-language-for-sdk-shape",
+        format: { shape },
+        target: NoTarget,
+      });
+      return;
+    }
     const collected = await collectBetaFromTcgc(context, keyFilter, scope);
     payload = toListShape(collected, options);
   } else {
