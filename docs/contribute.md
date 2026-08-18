@@ -56,6 +56,31 @@ emitter before the suite runs.
 npm test
 ```
 
+## Publishing to npm
+
+Releases use npm trusted publishing from GitHub Actions, so no long-lived
+`NPM_TOKEN` is stored in the repository. The npm package must have a GitHub
+Actions trusted publisher configured with:
+
+- Organization or user: `jpalvarezl`
+- Repository: `typespec-extension-exporter`
+- Workflow filename: `publish.yml`
+- Environment: leave blank
+
+To publish, update the version in `package.json` and `package-lock.json`, commit
+that change, and push a matching `v<version>` tag. The
+[Publish to npm workflow](../.github/workflows/publish.yml) verifies the tag,
+runs formatting, lint, build/tests, and publishes with npm provenance. For
+example:
+
+```bash
+npm version minor -m "Release %s"
+git push origin HEAD
+git push origin v0.5.0
+```
+
+Do not reuse or move a published version tag.
+
 ## Quick smoke test against the sample spec
 
 A sample spec lives in [`sample/`](../sample). To try the emitter against it

@@ -224,4 +224,4 @@ the CSV in the wrong place.
   `tsp-ast-input`, and `list` shapes in depth, SDK naming rules, and the
   JSON/YAML/CSV formats.
 - [Contributing](docs/contribute.md) — local setup, scripts, project structure,
-  testing, and how `foundry/emit.mjs` works.
+  testing, trusted npm publishing, and how `foundry/emit.mjs` works.

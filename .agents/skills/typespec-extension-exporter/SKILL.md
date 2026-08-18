@@ -144,6 +144,17 @@ npm run lint       # ESLint
 npm run format     # Prettier
 ```
 
+## Publish
+
+Publishing uses npm trusted publishing through
+`.github/workflows/publish.yml`; do not publish directly from the office
+network and do not add a long-lived `NPM_TOKEN`. The npm package's trusted
+publisher must target user `jpalvarezl`, repository
+`typespec-extension-exporter`, workflow filename `publish.yml`, with no GitHub
+environment. Bump and commit the package version, then push the matching
+`v<version>` tag. The workflow validates that the tag matches `package.json`,
+runs checks/tests, and publishes with provenance.
+
 ## Run against the sample spec (quick smoke test)
 
 ```bash
