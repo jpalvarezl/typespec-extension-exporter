@@ -5,11 +5,14 @@ import {
   escapeRegExp,
   getClassFqn,
   getJavaTypeFqn,
+  resolveManualEntries,
   toListShape,
   toPascalCase,
   toRevapiEntries,
   toTspAstInputEntries,
 } from "../../dist/src/transform.js";
+import { parseManualEntries } from "../../dist/src/options.js";
+import type { ExtensionEmitterOptions } from "../../dist/src/lib.js";
 import type { CollectedBeta } from "../../dist/src/types.js";
 
 const JAVA_NAMES = {
@@ -139,7 +142,141 @@ const COLLECTED: CollectedBeta = {
   ],
 };
 
+const MANUAL_OPTIONS = { namespace: "com.azure.ai.agents" };
+
+function manualTargets(
+  value: string,
+  shape: "revapi" | "tsp-ast-input" | "list",
+  options: ExtensionEmitterOptions = MANUAL_OPTIONS,
+) {
+  const parsed = parseManualEntries(value);
+  expect(parsed.invalidEntries).toEqual([]);
+  return resolveManualEntries(parsed.entries, options, shape);
+}
+
+describe("resolveManualEntries", () => {
+  it.each(["revapi", "tsp-ast-input"] as const)(
+    "qualifies short names using the public models package for %s",
+    (shape) => {
+      expect(
+        manualTargets("FooBar,FooBar::snake_case", shape, {
+          namespace: " com.example ",
+          "models-subpackage": "custom",
+          "internal-subpackage": "hidden",
+        }),
+      ).toEqual([
+        { type: "class", className: "com.example.custom.FooBar" },
+        {
+          type: "field",
+          className: "com.example.custom.FooBar",
+          memberName: "snake_case",
+        },
+      ]);
+    },
+  );
+
+  it("supports an empty Java models subpackage", () => {
+    expect(
+      manualTargets("FooBar", "tsp-ast-input", {
+        ...MANUAL_OPTIONS,
+        "models-subpackage": "",
+      }),
+    ).toEqual([{ type: "class", className: "com.azure.ai.agents.FooBar" }]);
+  });
+
+  it("does not add a subpackage for list output", () => {
+    expect(
+      manualTargets("FooBar::baz", "list", {
+        namespace: "Example.Models",
+        "models-subpackage": "ignored",
+      }),
+    ).toEqual([
+      { type: "field", className: "Example.Models.FooBar", memberName: "baz" },
+    ]);
+  });
+
+  it.each(["revapi", "tsp-ast-input", "list"] as const)(
+    "preserves explicit FQNs regardless of namespace/subpackage options for %s",
+    (shape) => {
+      const input =
+        "com.example.implementation.models.FooBar,com.example.FooBar::baz";
+      const expected = parseManualEntries(input).entries;
+      expect(manualTargets(input, shape, {})).toEqual(expected);
+      expect(
+        manualTargets(input, shape, {
+          namespace: "ignored",
+          "models-subpackage": "ignored",
+          "internal-subpackage": "ignored",
+        }),
+      ).toEqual(expected);
+    },
+  );
+
+  it("fails explicitly if a caller tries to resolve short names without a namespace", () => {
+    expect(() => manualTargets("FooBar", "list", {})).toThrow(
+      /without an explicit namespace/,
+    );
+  });
+});
+
 describe("toRevapiEntries", () => {
+  it("deduplicates manual targets against discovered targets without losing previews", () => {
+    const entries = toRevapiEntries(
+      COLLECTED,
+      { ...MANUAL_OPTIONS, justification: "Beta." },
+      manualTargets(
+        "AgentDefinition,com.azure.ai.agents.models.AgentDefinition,Tool::blobUrl,Tool,AgentDefinition::betaProp",
+        "revapi",
+      ),
+    );
+    expect(entries).toHaveLength(4);
+    expect(entries.filter((e) => e.old.includes("AgentDefinition("))).toEqual([
+      {
+        ignore: true,
+        regex: true,
+        code: "java\\..*",
+        old: ".*\\bcom\\.azure\\.ai\\.agents\\.models\\.AgentDefinition(?![\\w$]).*",
+        justification: "Beta. Hosted=V1",
+      },
+    ]);
+    expect(entries.find((e) => e.old.includes("BlobUrl"))?.justification).toBe(
+      "Beta. Eval=V1",
+    );
+    expect(entries.find((e) => e.old.includes("BetaProp"))?.justification).toBe(
+      "Beta.",
+    );
+    expect(entries.map((e) => e.old)).toEqual(
+      entries.map((e) => e.old).sort((a, b) => a.localeCompare(b)),
+    );
+  });
+
+  it("escapes manual names and uses the existing accessor convention", () => {
+    const entries = toRevapiEntries(
+      { types: [], properties: [] },
+      MANUAL_OPTIONS,
+      manualTargets("Foo$Bar,Foo$Bar::snake_case", "revapi"),
+    );
+    expect(entries).toHaveLength(2);
+    const classPattern = entries.find((e) => !e.old.includes("::"))!.old;
+    const fieldPattern = entries.find((e) => e.old.includes("::"))!.old;
+    expect(
+      new RegExp(classPattern).test("com.azure.ai.agents.models.Foo$Bar"),
+    ).toBe(true);
+    expect(
+      new RegExp(classPattern).test("com.azure.ai.agents.models.Foo$BarExtra"),
+    ).toBe(false);
+    expect(
+      new RegExp(fieldPattern).test(
+        "com.azure.ai.agents.models.Foo$Bar::getSnakeCase",
+      ),
+    ).toBe(true);
+    expect(
+      new RegExp(fieldPattern).test(
+        "com.azure.ai.agents.models.Foo$Bar::getSnakeCaseExtra",
+      ),
+    ).toBe(false);
+  });
+
   it("builds class- and accessor-level ignore entries", () => {
     const entries = toRevapiEntries(COLLECTED, {});
 
@@ -181,6 +318,41 @@ describe("toRevapiEntries", () => {
 });
 
 describe("toTspAstInputEntries", () => {
+  it("merges manual targets while retaining previews and explicitly requested fields", () => {
+    const entries = toTspAstInputEntries(
+      COLLECTED,
+      { ...MANUAL_OPTIONS, justification: "Beta." },
+      manualTargets(
+        "AgentDefinition,com.azure.ai.agents.models.AgentDefinition,Tool::blobUrl,Tool,AgentDefinition::betaProp",
+        "tsp-ast-input",
+      ),
+    );
+    expect(entries).toEqual([
+      {
+        type: "class",
+        class_name: "com.azure.ai.agents.models.AgentDefinition",
+        annotation_description: "Beta. Hosted=V1",
+      },
+      {
+        type: "field",
+        class_name: "com.azure.ai.agents.models.AgentDefinition",
+        annotation_description: "Beta.",
+        member_name: "betaProp",
+      },
+      {
+        type: "class",
+        class_name: "com.azure.ai.agents.models.Tool",
+        annotation_description: "Beta.",
+      },
+      {
+        type: "field",
+        class_name: "com.azure.ai.agents.models.Tool",
+        annotation_description: "Beta. Eval=V1",
+        member_name: "blobUrl",
+      },
+    ]);
+  });
+
   it("builds class and field entries", () => {
     const entries = toTspAstInputEntries(COLLECTED, {});
 
@@ -199,6 +371,29 @@ describe("toTspAstInputEntries", () => {
 });
 
 describe("toListShape", () => {
+  it("sorts and deduplicates manual additions without suppressing requested fields", () => {
+    expect(
+      toListShape(
+        COLLECTED,
+        MANUAL_OPTIONS,
+        manualTargets(
+          "Zeta,AgentDefinition,com.azure.ai.agents.AgentDefinition,Tool::blobUrl,Alpha,AgentDefinition::betaProp,AgentDefinition::betaProp",
+          "list",
+        ),
+      ),
+    ).toEqual({
+      class: [
+        "com.azure.ai.agents.AgentDefinition",
+        "com.azure.ai.agents.Alpha",
+        "com.azure.ai.agents.Zeta",
+      ],
+      field: [
+        "com.azure.ai.agents.AgentDefinition::betaProp",
+        "com.azure.ai.agents.Tool::blobUrl",
+      ],
+    });
+  });
+
   it("collapses beta types into `class` and beta props into `field`, without a subpackage", () => {
     const result = toListShape(COLLECTED, {});
     // FQNs carry no models/internal subpackage; Tool::blobUrl is a beta

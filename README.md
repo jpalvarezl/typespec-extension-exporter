@@ -12,6 +12,8 @@ be serialized as JSON, YAML, or CSV.
   and fully-qualified `name`, the containing `namespace`, and the exact
   `file`/`line`/`column` of the decorator.
 - Optional filtering by target kind (e.g. only models, fields, or operations).
+- Manual class/field additions for SDK outputs, including classes generated
+  from anonymous TypeSpec models.
 - Output file name is configurable.
 
 ## Installation
@@ -66,6 +68,7 @@ Pass options via `--option typespec-extension-exporter.<name>=<value>` (or under
 | --------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `language`            | string | **Required** for SDK-derived shapes (`revapi`, `tsp-ast-input`, and `list`). Known values: `java`, `csharp`. Any other value is treated as a raw TCGC emitter name. `revapi` and `tsp-ast-input` are Java-specific; non-Java values for those shapes are an error and no output is emitted.                                                        |
 | `namespace`           | string | Override for the generated SDK base namespace/package, e.g. `com.azure.ai.agents` (Java) or `Azure.AI.Projects.Agents` (.NET). When omitted, the client namespace resolved by TCGC (which honours `@@clientNamespace`) is used. Set this when the package comes from the language emitter's own `namespace` option instead of `@@clientNamespace`. |
+| `manual-entries`      | string | Comma-separated generated SDK targets: `FooBar` for a class, `OtherModel::baz` for a field. Short class names require an explicit `namespace`; fully qualified names are preserved unchanged. Adds to discovered entries in all SDK shapes/formats; non-empty use with `raw` is an error. See [Manual entries](#manual-entries).                   |
 | `models-subpackage`   | string | Subpackage for public models/enums. Defaults to `models`. (Applies to `revapi`/`tsp-ast-input`; `list` uses no subpackage.)                                                                                                                                                                                                                        |
 | `internal-subpackage` | string | Subpackage for non-public (internal-access) types. Defaults to `implementation.models`.                                                                                                                                                                                                                                                            |
 | `justification`       | string | Base annotation/justification text attached to every generated Java output entry. The gating preview feature keys (from the `@extension` value's `required_previews`/`conditional_previews`) are appended automatically.                                                                                                                           |
@@ -79,13 +82,22 @@ values that can never match:
 - `non-extension-key`: a `keys` value that does not start with `x-` (OpenAPI
   `@extension` keys always do).
 
-The emitter reports a compiler error and emits no output for SDK-derived shape
+The emitter reports a compiler error and emits no output for these
 configuration errors:
 
 - `missing-language-for-sdk-shape`: `language` is missing or blank for
   `revapi`, `tsp-ast-input`, or `list`.
 - `non-java-language-for-java-shape`: `revapi` or `tsp-ast-input` is paired
   with a language that does not resolve to Java.
+- `invalid-manual-entry`: a manual target is not a class name/FQN or a
+  `Class::member` reference (for example, `FooBar::` or `Foo::bar::baz`).
+- `missing-namespace-for-manual-entry`: a short manual class name is supplied
+  without a non-blank explicit `namespace`.
+- `manual-entries-for-raw-shape`: non-empty manual entries are supplied for
+  `raw`, which only represents actual decorators.
+
+`manual-entries`, like `keys` and `kinds`, must be a string. YAML arrays and
+objects fail schema validation.
 
 Examples:
 
@@ -107,6 +119,50 @@ tsp compile <path> --emit typespec-extension-exporter \
 For details on each output shape (including the `revapi` regex anchoring and the
 `tsp-ast-input` entry format), the Java naming rules, and the serialization
 formats, see [Output shapes and formats](docs/advanced.md).
+
+### Manual entries
+
+Use `manual-entries` when a generated SDK class or field is missing from
+automatic beta discovery, for example a Java `FooBar` class generated from
+`model Foo { bar: { baz: string; }; }`:
+
+```yaml
+emit:
+  - typespec-extension-exporter
+options:
+  typespec-extension-exporter:
+    language: java
+    namespace: com.example
+    output-shape: tsp-ast-input
+    output-format: csv
+    output-file: beta-annotations.csv
+    manual-entries: "FooBar,OtherModel::baz"
+```
+
+Alongside discovered entries, `beta-annotations.csv` contains:
+
+```csv
+type;class_name;annotation_description;member_name
+class;com.example.models.FooBar;Preview API.;
+field;com.example.models.OtherModel;Preview API.;baz
+```
+
+Short class names use the explicit `namespace` plus `models-subpackage` for
+Java shapes, or just `namespace` for `list`. Dot-qualified names are complete
+FQNs and remain unchanged, including internal targets such as
+`com.example.implementation.models.FooBar`. Manual names must match the
+generated SDK; they are not renamed or checked for existence.
+
+Whitespace and empty comma segments are ignored. Identical targets are
+deduplicated, discovered preview metadata is preserved, and explicitly
+requested fields remain even when their class is included. Manual additions
+are independent of the `keys`/`kinds` filters and use the existing
+`justification` text (default `Preview API.`).
+
+Where you can edit the spec, extracting the inline type into a named model
+and applying `@extension` directly is more reliable than maintaining generated
+names manually. See [manual entries and anonymous models](docs/advanced.md#manual-entries-and-anonymous-models)
+for the naming and discovery boundaries.
 
 ## Running against the Foundry spec
 

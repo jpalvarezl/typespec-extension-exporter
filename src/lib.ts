@@ -39,6 +39,12 @@ export interface ExtensionEmitterOptions {
   // --- SDK-output options (used when output-shape is "revapi", "tsp-ast-input", or "list") ---
 
   /**
+   * Explicit generated SDK targets, comma-separated: "FooBar,OtherModel::baz".
+   * Short class names require `namespace`; fully qualified names are unchanged.
+   * Supported only by SDK output shapes, not `raw`.
+   */
+  "manual-entries"?: string;
+  /**
    * Target SDK language for SDK-derived outputs. Must be explicitly supplied
    * when `output-shape` is `revapi`, `tsp-ast-input`, or `list`. Known values:
    * "java", "csharp". Any other value is treated as a raw TCGC emitter name.
@@ -78,6 +84,7 @@ const EmitterOptionsSchema: JSONSchemaType<ExtensionEmitterOptions> = {
       nullable: true,
     },
     "output-file": { type: "string", nullable: true },
+    "manual-entries": { type: "string", nullable: true },
     language: { type: "string", nullable: true },
     namespace: { type: "string", nullable: true },
     "models-subpackage": { type: "string", nullable: true },
@@ -90,6 +97,25 @@ const EmitterOptionsSchema: JSONSchemaType<ExtensionEmitterOptions> = {
 export const $lib = createTypeSpecLibrary({
   name: "typespec-extension-exporter",
   diagnostics: {
+    "invalid-manual-entry": {
+      severity: "error",
+      messages: {
+        default: paramMessage`Invalid manual entry '${"entry"}'. Use a class name or fully qualified name, optionally followed by '::memberName' for a field.`,
+      },
+    },
+    "manual-entries-for-raw-shape": {
+      severity: "error",
+      messages: {
+        default:
+          "The 'manual-entries' option is supported only for SDK output shapes ('revapi', 'tsp-ast-input', or 'list'), not 'raw'.",
+      },
+    },
+    "missing-namespace-for-manual-entry": {
+      severity: "error",
+      messages: {
+        default: paramMessage`The 'namespace' option is required for the short manual class name '${"name"}'. Set a non-blank namespace or supply a fully qualified class name.`,
+      },
+    },
     "unknown-kind": {
       severity: "warning",
       messages: {

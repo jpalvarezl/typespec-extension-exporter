@@ -20,8 +20,9 @@ A TypeSpec emitter (TypeSpec compiler v1.13) with four output shapes and JSON/YA
   de-duplicated lists named by their generated-SDK FQN (`<namespace>.<name>`,
   no subpackage). `class` holds beta types (model/enum/union); `field` holds
   beta properties on a non-beta container as `<ContainerFqn>::<propertyName>`.
-  Like the Java shapes, properties of an already-beta container are omitted
-  (covered by its `class` entry). Language-neutral — set `language` explicitly
+  Like the Java shapes, automatically discovered properties of an already-beta
+  container are omitted (covered by its `class` entry); explicitly requested
+  manual fields are retained. Language-neutral — set `language` explicitly
   (built for the C# SDK, where the namespace comes from `@clientNamespace`).
 
 Names/packages come from TCGC (`@azure-tools/typespec-client-generator-core`).
@@ -88,6 +89,45 @@ comma-separated strings.
 | `models-subpackage`   | string                                          | `models`                                           | `revapi`/`tsp-ast-input` only. Subpackage for public types. (`list` uses no subpackage.)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `internal-subpackage` | string                                          | `implementation.models`                            | `revapi`/`tsp-ast-input` only. Subpackage for non-public (internal `access`) types.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `justification`       | string                                          | `Preview API.`                                     | `revapi`/`tsp-ast-input` only. Base annotation/justification on each entry. Gating preview keys parsed from the `@extension` value's `required_previews`/`conditional_previews` arrays are appended automatically (e.g. `Preview API. CodeAgents=V1Preview`).                                                                                                                                                                                                                                                                                                              |
+| `manual-entries`      | string (CSV)                                    | no additions                                       | All SDK shapes. `FooBar` adds a class; `FooBar::baz` adds a field. Short names require an explicit `namespace`; Java shapes add `models-subpackage`, `list` does not. Dot-qualified class names are absolute FQNs preserved unchanged. Non-empty use with `raw` is an error.                                                                                                                                                                                                                                                                                               |
+
+### Manual SDK entries
+
+```yaml
+options:
+  typespec-extension-exporter:
+    language: java
+    namespace: com.example
+    output-shape: tsp-ast-input
+    output-format: csv
+    output-file: beta-annotations.csv
+    manual-entries: "FooBar,OtherModel::baz"
+```
+
+This adds `class;com.example.models.FooBar;Preview API.;` and
+`field;com.example.models.OtherModel;Preview API.;baz` to the CSV, alongside
+discovered entries. The emitter must still be enabled via `emit` or `--emit`.
+
+- One comma-separated string, no nested keys or YAML lists. Whitespace,
+  including around `::`, is trimmed; empty segments are ignored.
+- Supply generated SDK names, not TypeSpec names. No `@clientName` rewriting
+  or existence checking is applied to manual targets.
+- Short names require explicit `namespace`, even when TCGC can infer it for
+  discovered entries. Any dot-qualified name is an absolute FQN; use
+  `com.example.implementation.models.FooBar` for internal classes.
+- Manual entries apply to all SDK shapes/formats, independent of `keys` and
+  `kinds`. Duplicate targets are merged without losing discovered preview
+  keys. New manual targets use `justification` without inferred preview keys.
+- Explicit fields remain even if their class is included. Automatic
+  discovery's beta-container field omission is unchanged.
+- `invalid-manual-entry`, `missing-namespace-for-manual-entry`, and
+  `manual-entries-for-raw-shape` are errors and prevent output. Empty input
+  is a no-op, including in `raw`.
+- For inline TypeSpec models that generate separate Java classes, manual
+  entries avoid guessing names in this emitter. Extracting a named model
+  and attaching `@extension` directly is preferable when the spec can change.
+  There is no automatic anonymous-type inference or parent metadata
+  propagation.
 
 ### revapi `old` regex shape
 
@@ -96,8 +136,10 @@ comma-separated strings.
   `<namespace>.<models|implementation.models>.<ClientName>`.
 - Beta property on a non-beta model:
   `.*\b<containerFqn>::(get|set|is|with)?<PascalName>(?![\w$]).*`. Properties on
-  a model that is itself beta are skipped (covered by the type entry).
-- Anonymous models (request bodies, empty namespace) are skipped.
+  a model that is itself beta are skipped during discovery (covered by the
+  type entry); explicit manual fields are retained.
+- SDK models without a namespace (e.g. synthetic request bodies) are skipped
+  during discovery. Not all anonymous TypeSpec models fall into this category.
 - Every entry uses `code: "java\\..*"` (matches any breaking-change code).
 
 ### tsp-ast-input shape
@@ -108,7 +150,7 @@ comma-separated strings.
   `{ "type": "field", "class_name": "<containerFqn>", "annotation_description": "...", "member_name": "<javaMemberName>" }`.
 - `member_name` is the generated Java field/member name from TCGC (camelCase,
   reflecting Java `@clientName` customizations), not the accessor name.
-- Anonymous models are skipped using the same rules as revapi mode.
+- Namespace-less SDK models are skipped using the same rules as revapi mode.
 
 ### list shape
 
@@ -118,9 +160,10 @@ comma-separated strings.
   container) — i.e. the `class`/`field` rows of the csv/tsp-ast-input shapes
   collapsed into two lists. `<fqn>` = `<namespace>.<name>` with **no**
   `models`/`implementation.models` subpackage.
-- Beta properties of an already-beta container are omitted (covered by that
-  container's `class` entry), matching revapi/tsp-ast-input. Anonymous models
-  are skipped. Each list sorted.
+- Automatically discovered beta properties of an already-beta container are
+  omitted (covered by that container's `class` entry), matching
+  revapi/tsp-ast-input. Explicit manual fields are retained. Namespace-less
+  SDK models are skipped during discovery. Each list is sorted.
 - The property segment is the raw TCGC member name for the `language` scope
   (camelCase for Java; the csharp scope also yields the spec property name).
 - CSV serialization flattens both lists into `type;name` rows; JSON/YAML emit

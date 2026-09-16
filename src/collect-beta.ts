@@ -34,9 +34,8 @@ export async function collectBetaFromTcgc(
     sdkType: SdkModelType | SdkEnumType,
     matched: { value: unknown },
   ): void => {
-    // Anonymous models (e.g. request bodies) have no client namespace and do
-    // not map to a distinct public SDK type; their beta members are covered
-    // by the named models they originate from, so skip them.
+    // Skip namespace-less SDK types, such as synthetic request bodies.
+    // Some inline TypeSpec models do become named, namespaced SDK types.
     if (!sdkType.namespace) {
       return;
     }
@@ -84,7 +83,7 @@ export async function collectBetaFromTcgc(
   // are already covered by the model's own entry.
   for (const model of pkg.models) {
     if (!model.namespace) {
-      continue; // anonymous model, no distinct public SDK type
+      continue; // no namespace for a generated SDK target
     }
     if (model.__raw && betaModelRaws.has(model.__raw)) {
       continue;
