@@ -9,11 +9,13 @@ import {
   findUnknownKinds,
   parseKeyFilter,
   parseKindFilter,
+  parseManualEntries,
   resolveEmitterScope,
   resolvesToJavaScope,
 } from "./options.js";
 import { getDefaultOutputFile, serializePayload } from "./serialize.js";
 import {
+  resolveManualEntries,
   toListShape,
   toRevapiEntries,
   toTspAstInputEntries,
@@ -54,6 +56,44 @@ export async function $onEmit(
   const shape = options["output-shape"] ?? "raw";
   const format = options["output-format"] ?? "json";
 
+  const { entries: manualEntries, invalidEntries } = parseManualEntries(
+    options["manual-entries"],
+  );
+  for (const entry of invalidEntries) {
+    reportDiagnostic(program, {
+      code: "invalid-manual-entry",
+      format: { entry },
+      target: NoTarget,
+    });
+  }
+  if (
+    shape === "raw" &&
+    (manualEntries.length > 0 || invalidEntries.length > 0)
+  ) {
+    reportDiagnostic(program, {
+      code: "manual-entries-for-raw-shape",
+      target: NoTarget,
+    });
+    return;
+  }
+  const missingNamespaces = new Set(
+    manualEntries
+      .filter(
+        (entry) => !entry.className.includes(".") && !options.namespace?.trim(),
+      )
+      .map((entry) => entry.className),
+  );
+  for (const name of missingNamespaces) {
+    reportDiagnostic(program, {
+      code: "missing-namespace-for-manual-entry",
+      format: { name },
+      target: NoTarget,
+    });
+  }
+  if (invalidEntries.length > 0 || missingNamespaces.size > 0) {
+    return;
+  }
+
   let payload: unknown;
   if (shape === "revapi" || shape === "tsp-ast-input") {
     const scope = resolveEmitterScope(options.language);
@@ -77,10 +117,11 @@ export async function $onEmit(
     // codes and tsp-ast-input feeds Java AST customizations. Keep their TCGC
     // scope fixed to Java.
     const collected = await collectBetaFromTcgc(context, keyFilter);
+    const manualTargets = resolveManualEntries(manualEntries, options, shape);
     payload =
       shape === "revapi"
-        ? toRevapiEntries(collected, options)
-        : toTspAstInputEntries(collected, options);
+        ? toRevapiEntries(collected, options, manualTargets)
+        : toTspAstInputEntries(collected, options, manualTargets);
   } else if (shape === "list") {
     const scope = resolveEmitterScope(options.language);
     if (!scope) {
@@ -92,7 +133,11 @@ export async function $onEmit(
       return;
     }
     const collected = await collectBetaFromTcgc(context, keyFilter, scope);
-    payload = toListShape(collected, options);
+    payload = toListShape(
+      collected,
+      options,
+      resolveManualEntries(manualEntries, options, shape),
+    );
   } else {
     payload = collectRawOccurrences(context, kindFilter, keyFilter);
   }

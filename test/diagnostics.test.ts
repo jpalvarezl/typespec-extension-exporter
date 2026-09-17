@@ -28,6 +28,108 @@ async function diagnoseWithOutputs(options: Record<string, unknown>) {
 }
 
 describe("option diagnostics", () => {
+  it("rejects malformed manual entries without emitting partial output", async () => {
+    const [result, diagnostics] = await diagnoseWithOutputs({
+      language: "java",
+      namespace: "com.example",
+      "output-shape": "tsp-ast-input",
+      "manual-entries": "Valid, FooBar::, ::baz",
+    });
+    expectDiagnostics(diagnostics, [
+      {
+        code: "typespec-extension-exporter/invalid-manual-entry",
+        severity: "error",
+        message: /Invalid manual entry 'FooBar::'/,
+      },
+      {
+        code: "typespec-extension-exporter/invalid-manual-entry",
+        severity: "error",
+        message: /Invalid manual entry '::baz'/,
+      },
+    ]);
+    expect(result.outputs).toEqual({});
+  });
+
+  it.each(["revapi", "tsp-ast-input", "list"])(
+    "requires an explicit namespace for short manual targets in %s",
+    async (shape) => {
+      for (const namespace of [undefined, "", "   "]) {
+        const [result, diagnostics] = await diagnoseWithOutputs({
+          language: "java",
+          namespace,
+          "output-shape": shape,
+          "manual-entries": "FooBar,FooBar::baz",
+        });
+        expectDiagnostics(diagnostics, [
+          {
+            code: "typespec-extension-exporter/missing-namespace-for-manual-entry",
+            severity: "error",
+            message: /short manual class name 'FooBar'/,
+          },
+        ]);
+        expect(result.outputs).toEqual({});
+      }
+    },
+  );
+
+  it("rejects non-empty manual entries in raw mode, including the default shape", async () => {
+    for (const shape of [undefined, "raw"]) {
+      const [result, diagnostics] = await diagnoseWithOutputs({
+        "output-shape": shape,
+        "manual-entries": "FooBar",
+      });
+      expectDiagnostics(diagnostics, [
+        {
+          code: "typespec-extension-exporter/manual-entries-for-raw-shape",
+          severity: "error",
+        },
+      ]);
+      expect(result.outputs).toEqual({});
+    }
+  });
+
+  it("treats empty manual entries as absent in raw mode", async () => {
+    const [result, diagnostics] = await diagnoseWithOutputs({
+      "manual-entries": " , , ",
+    });
+    expectDiagnosticEmpty(diagnostics);
+    expect(Object.keys(result.outputs)).toEqual(["extensions.json"]);
+  });
+
+  it.each([{ value: ["FooBar"] }, { value: { class: "FooBar" } }])(
+    "rejects non-string manual entries $value through the options schema",
+    async ({ value }) => {
+      const [result, diagnostics] = await diagnoseWithOutputs({
+        "manual-entries": value,
+      });
+      expectDiagnostics(diagnostics, [
+        {
+          code: "invalid-schema",
+          severity: "error",
+          message: /must be string.*manual-entries/,
+        },
+      ]);
+      expect(result.outputs).toEqual({});
+    },
+  );
+
+  it("rejects a numeric target after compiler scalar-to-string coercion", async () => {
+    const [result, diagnostics] = await diagnoseWithOutputs({
+      language: "java",
+      namespace: "com.example",
+      "output-shape": "tsp-ast-input",
+      "manual-entries": 42,
+    });
+    expectDiagnostics(diagnostics, [
+      {
+        code: "typespec-extension-exporter/invalid-manual-entry",
+        severity: "error",
+        message: /Invalid manual entry '42'/,
+      },
+    ]);
+    expect(result.outputs).toEqual({});
+  });
+
   it("warns once per unknown kind", async () => {
     const diagnostics = await diagnose({ kinds: "model,bogus" });
 

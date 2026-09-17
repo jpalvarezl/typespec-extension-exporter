@@ -7,9 +7,73 @@ import {
   normalizeKind,
   parseKeyFilter,
   parseKindFilter,
+  parseManualEntries,
   resolveEmitterScope,
   resolvesToJavaScope,
 } from "../../dist/src/options.js";
+
+describe("parseManualEntries", () => {
+  it.each([undefined, "", "   ", " , , "])(
+    "treats %j as no additions",
+    (value) => {
+      expect(parseManualEntries(value)).toEqual({
+        entries: [],
+        invalidEntries: [],
+      });
+    },
+  );
+
+  it("parses short and qualified class/field names, trimming separators", () => {
+    expect(
+      parseManualEntries(
+        " FooBar, OtherModel :: baz , com.example.FooBar, com.example.OtherModel::snake_case,",
+      ),
+    ).toEqual({
+      entries: [
+        { type: "class", className: "FooBar" },
+        { type: "field", className: "OtherModel", memberName: "baz" },
+        { type: "class", className: "com.example.FooBar" },
+        {
+          type: "field",
+          className: "com.example.OtherModel",
+          memberName: "snake_case",
+        },
+      ],
+      invalidEntries: [],
+    });
+  });
+
+  it("accepts Unicode identifiers and Java dollar signs", () => {
+    expect(parseManualEntries("Caf\u00e9$Inner::_value").entries).toEqual([
+      { type: "field", className: "Caf\u00e9$Inner", memberName: "_value" },
+    ]);
+  });
+
+  it.each([
+    "::baz",
+    "FooBar::",
+    "FooBar::baz::extra",
+    "FooBar:baz",
+    ".FooBar",
+    "com..FooBar",
+    "com.FooBar.",
+    "Foo Bar",
+    "Foo*",
+    "Foo<Bar>",
+    "Foo::getBaz()",
+    "Foo::baz.qux",
+    "1Foo",
+    "Foo::1baz",
+  ])(
+    "reports malformed reference %s without dropping valid entries",
+    (entry) => {
+      expect(parseManualEntries(`Valid, ${entry}`)).toEqual({
+        entries: [{ type: "class", className: "Valid" }],
+        invalidEntries: [entry],
+      });
+    },
+  );
+});
 
 describe("parseKindFilter", () => {
   it("returns undefined for unset or empty input", () => {

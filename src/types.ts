@@ -32,8 +32,8 @@ export interface RevapiEntry {
 /** The `list` output: the beta class/field entries collapsed by type into
  * two sorted, de-duplicated lists. `class` holds beta type-level FQNs
  * (`<namespace>.<Name>`); `field` holds beta property references on non-beta
- * containers (`<ContainerFqn>::<propertyName>`). Neither carries a
- * models/internal subpackage. */
+ * containers (`<ContainerFqn>::<propertyName>`), plus explicitly requested
+ * manual fields. No models/internal subpackage is added. */
 export interface ListShape {
   class: string[];
   field: string[];
@@ -74,6 +74,11 @@ export interface CollectedBeta {
   types: BetaType[];
   properties: BetaProperty[];
 }
+
+/** An explicitly requested generated SDK class or field. */
+export type ManualEntry =
+  | { type: "class"; className: string }
+  | { type: "field"; className: string; memberName: string };
 
 export type OutputShape = NonNullable<ExtensionEmitterOptions["output-shape"]>;
 export type OutputFormat = NonNullable<

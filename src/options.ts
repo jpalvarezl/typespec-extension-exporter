@@ -1,4 +1,5 @@
 import type { ExtensionEmitterOptions } from "./lib.js";
+import type { ManualEntry } from "./types.js";
 
 /** Normalize a user-provided kind filter value to a canonical lowercase kind. */
 export function normalizeKind(kind: string): string {
@@ -28,6 +29,37 @@ function splitOption(value: string | undefined): string[] {
     .split(",")
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
+}
+
+/** Parse explicit SDK targets without applying language-specific renaming. */
+export function parseManualEntries(value: string | undefined): {
+  entries: ManualEntry[];
+  invalidEntries: string[];
+} {
+  // Include Unicode letters, currency symbols (notably Java's $), and
+  // connector punctuation without accepting signatures or wildcard syntax.
+  const identifier =
+    /^[\p{L}\p{Nl}\p{Sc}\p{Pc}][\p{L}\p{Nl}\p{Sc}\p{Pc}\p{Mn}\p{Mc}\p{Nd}\p{Cf}]*$/u;
+  const entries: ManualEntry[] = [];
+  const invalidEntries: string[] = [];
+  for (const entry of splitOption(value)) {
+    const parts = entry.split("::").map((part) => part.trim());
+    const [className, memberName] = parts;
+    if (
+      parts.length > 2 ||
+      !className.split(".").every((part) => identifier.test(part)) ||
+      (parts.length === 2 && !identifier.test(memberName))
+    ) {
+      invalidEntries.push(entry);
+      continue;
+    }
+    entries.push(
+      parts.length === 2
+        ? { type: "field", className, memberName }
+        : { type: "class", className },
+    );
+  }
+  return { entries, invalidEntries };
 }
 
 /** Return the `kinds` values that aren't recognized TypeSpec kinds. */

@@ -40,7 +40,8 @@ tsp compile <path> --emit typespec-extension-exporter \
 ## SDK output modes (`revapi`, `tsp-ast-input`, and `list`)
 
 All SDK output modes build a TypeSpec Client Generator Core (TCGC) SDK model and
-name beta entities from that model. The Java-oriented shapes (`revapi` and
+name discovered beta entities from that model. Explicit `manual-entries` are
+then merged into the output. The Java-oriented shapes (`revapi` and
 `tsp-ast-input`) always use the Java TCGC scope because their payloads target
 Java revapi and Java AST customization consumers. The language-neutral `list`
 shape uses the required `language` option (`java`, `csharp`, or a raw emitter
@@ -52,13 +53,82 @@ error.
   the selected TCGC scope.
 - The public/internal `access` decides the `models` vs `implementation.models`
   subpackage for `revapi`/`tsp-ast-input`; `list` uses no subpackage.
-- Anonymous models (e.g. request bodies) have no distinct public type and are
-  skipped — their beta members are covered by the named models they originate
-  from.
+- SDK models without a namespace (such as synthetic request bodies) are
+  skipped. This is not a blanket exclusion of anonymous TypeSpec models:
+  some inline models become named, namespaced generated SDK classes.
 
 The base namespace/package is taken from TCGC's resolved client namespace, or
 overridden with the `namespace` option. See the
 [SDK-output options](../README.md#sdk-output-options-used-when-output-shape-is-revapi-tsp-ast-input-or-list).
+
+### Manual entries and anonymous models
+
+All three SDK output shapes accept the same comma-separated string:
+
+```yaml
+manual-entries: "FooBar,OtherModel::baz,com.example.implementation.models.Hidden"
+```
+
+A plain class name adds a `class` target; `Class::member` adds a `field`
+target. These are the two supported target types, not additional CSV columns.
+Use exact generated SDK names. Manual entries are not passed through TCGC
+renaming and are not checked against generated source files.
+
+Short names require a non-blank explicit `namespace`, even if automatic
+discovery can obtain a namespace from TCGC. For `revapi` and `tsp-ast-input`,
+short names use that namespace and `models-subpackage` (default `models`).
+For `list`, they use only the namespace. Any dot-qualified class name is
+treated as an absolute FQN; no namespace or subpackage is added or replaced.
+Use a full FQN for internal classes or targets outside the default package,
+not a relative name such as `models.FooBar`.
+
+Leading/trailing whitespace and empty comma segments are ignored, including
+whitespace around `::`. Omitted or empty input changes nothing. Malformed
+references, missing namespaces for short names, and non-empty manual entries
+with `raw` produce compiler errors and no output. YAML lists/objects are not
+accepted; method signatures, wildcards, and additional `::` segments are not
+part of this syntax.
+
+Manual entries are explicit additions, independent of `keys` and `kinds`.
+They share the existing sort/deduplication logic and use `justification`
+(default `Preview API.`) for Java outputs. When a manual target matches a
+discovered target, its discovered preview keys are retained. New manual
+targets have no inferred preview keys. An explicitly requested field remains
+present even when its class has an entry; only automatic discovery omits
+fields of an already-beta container.
+
+For example, Java may emit a distinct `FooBar` class for an inline model:
+
+```tsp
+model Foo {
+  bar: {
+    baz: string;
+  };
+}
+```
+
+Adding `manual-entries: "FooBar"` includes that class without depending on the
+emitter discovering metadata on the inline type. This option does not infer
+the name or propagate beta metadata from the parent model.
+
+When you can change the spec, a named model with explicit metadata avoids
+depending on generated anonymous-type naming conventions:
+
+```tsp
+@extension("x-ms-foundry-meta", #{ required_previews: #["Example=V1Preview"] })
+model FooBar {
+  baz: string;
+}
+
+model Foo {
+  bar: FooBar;
+}
+```
+
+The emitter can then use the named model's TCGC name and extension metadata.
+Otherwise, keep manual entries aligned with Java code generation when the
+spec or generator changes. Automatic anonymous-type inference is not part
+of this feature.
 
 ### `revapi`
 
@@ -82,7 +152,8 @@ matches a longer name that merely shares the same prefix:
 - Type-level entities (models, enums, unions) match their own class/enum name.
 - Beta properties on a non-beta model match that model's accessors
   (`...Model::(get|set|is|with)?PropertyName`).
-- Properties on a model that is itself beta are omitted as redundant.
+- Automatically discovered properties on a model that is itself beta are
+  omitted as redundant; explicit manual field targets are retained.
 
 ### `tsp-ast-input`
 
@@ -90,7 +161,8 @@ Annotation-insertion requests for a later AST customization step (this is what
 the Azure Java SDK's `@Beta` customization consumes as
 `beta-annotations.csv`). Type-level entities become `class` entries, and beta
 properties on non-beta models become `field` entries whose `member_name` is the
-generated Java member name from TCGC:
+generated Java member name from TCGC. Manual field targets use the supplied
+member name verbatim:
 
 ```json
 {
@@ -115,7 +187,8 @@ de-duplicated lists. Its CSV serialization is the same data flattened back to
   enums, unions).
 - `field` — beta **properties** declared on a non-beta container, as
   `<ContainerFqn>::<propertyName>`. Properties of an already-beta container are
-  omitted (covered by its `class` entry), exactly like `revapi`/`tsp-ast-input`.
+  omitted during automatic discovery (covered by its `class` entry), exactly
+  like `revapi`/`tsp-ast-input`. Explicit manual field targets are retained.
 
 Unlike `revapi`/`tsp-ast-input`, the FQN is just `namespace + "." + name` (no
 `models`/`implementation.models` subpackage):
